@@ -38,7 +38,6 @@
   return (Ei.out)
 }
 
-
 .fun.neg.loglik.beta <- function(beta, data){
 
   Y = data$Y; X = data$X;
@@ -277,4 +276,111 @@
 
 
 }
+
+.Score.test.stat.meta.4Gresampling <- function(X.perm.list, X.par.index, n.par.interest.beta, col.index.list, S.beta.list.meta, I.beta.list.meta, Method = "MV", W = NULL){
+
+  stu.num = length(X.perm.list)
+  score.stat.beta = NULL
+  score.beta = NULL
+  est.cov = NULL
+  score.pvalue.beta = NULL
+
+
+  for(j in c(1:stu.num)){
+    S.beta.list = S.beta.list.meta[[j]]
+    I.beta.list = I.beta.list.meta[[j]]
+    X.perm = X.perm.list[[j]]
+    p = ncol(X.perm)
+    n = nrow(X.perm)
+    m.beta = length(S.beta.list[[1]])
+    #n.par.interest.beta = m.beta
+    n.beta = m.beta*p
+    #n.beta = m.beta*2
+    par.interest.index.beta =  kronecker( ((0:(m.beta-1))*p), rep(1,length(X.par.index))) + X.par.index
+    #par.interest.index.beta = (1:m.beta )*2
+    n.par.beta.interest = length(par.interest.index.beta)
+    Score.reduce.beta.perm = matrix(0, n, n.beta )
+    Hess.reduce.beta.perm = matrix(0, n.beta, n.beta )
+    for(i in 1:n){
+
+      ###################################################
+      #                                                 #
+      #         Beta part: resampling Score test        #
+      #                                                 #
+      ###################################################
+      Score.reduce.beta.perm[i,] = Score.reduce.beta.perm[i,] + kronecker(matrix(S.beta.list[[i]], ncol=1),  matrix(X.perm[i,], ncol=1))
+
+      Hess.reduce.beta.perm = Hess.reduce.beta.perm + kronecker(I.beta.list[[i]], (  X.perm[i,] %o% X.perm[i,] ) )
+      #     if(sum(is.na(Hess.reduce.beta.perm))>0){
+      #       print(i); break;
+      #
+      #     }
+    }
+    ###################################################
+    #                                                 #
+    #         Beta part: resampling Score test        #
+    #                                                 #
+    ###################################################
+    Score.reduce.beta.perm.reorg = cbind( matrix(Score.reduce.beta.perm[,par.interest.index.beta], ncol=n.par.interest.beta), matrix(Score.reduce.beta.perm[,-par.interest.index.beta], ncol=n.beta - n.par.interest.beta) )
+    Hess.reduce.beta.perm.reorg = rbind(cbind( matrix(Hess.reduce.beta.perm[par.interest.index.beta, par.interest.index.beta], nrow=n.par.interest.beta), matrix(Hess.reduce.beta.perm[par.interest.index.beta, -par.interest.index.beta], nrow=n.par.interest.beta) ),
+                                        cbind( matrix(Hess.reduce.beta.perm[-par.interest.index.beta, par.interest.index.beta], nrow=n.beta - n.par.interest.beta), matrix(Hess.reduce.beta.perm[-par.interest.index.beta, -par.interest.index.beta], nrow= n.beta - n.par.interest.beta)))
+
+
+    # re-organized the score statistics and Hessian matrix
+    A = colSums(Score.reduce.beta.perm.reorg)[1:n.par.interest.beta]
+
+    B1 = cbind(diag(n.par.interest.beta), -Hess.reduce.beta.perm.reorg[(1:n.par.interest.beta), ((n.par.interest.beta+1):n.beta)] %*% ginv(Hess.reduce.beta.perm.reorg[((n.par.interest.beta+1):n.beta), ((n.par.interest.beta+1):n.beta)]) )
+
+    B2 =  matrix(0, n.beta, n.beta)
+
+    # change in 04/08/2016
+    for(i in 1:n){
+      B2 = B2 + Score.reduce.beta.perm.reorg[i,] %o% Score.reduce.beta.perm.reorg[i,]
+    }
+
+    B = B1 %*% B2 %*% t(B1)
+    score.stat.beta.perm = A %*% ginv(B) %*% A
+    score.stat.beta = append(score.stat.beta, score.stat.beta.perm)
+    score.beta[[j]] = A
+    est.cov[[j]] = B
+    score.pvalue.beta = append(score.pvalue.beta, (1 - pchisq(score.stat.beta.perm, n.par.interest.beta)))
+
+  }
+  score.beta.meta  = rep(0,n.par.interest.beta) ## A
+  est.cov.meta = matrix(0, nrow = n.par.interest.beta, ncol = n.par.interest.beta) ## B
+  for(i in 1:stu.num)
+  {
+    idx = col.index.list[[i]]
+    score.beta.meta[idx] =  score.beta.meta[idx] +  score.beta[[i]]  #FE-Burden
+    est.cov.meta[idx,idx] =  est.cov.meta[idx,idx] + est.cov[[i]] #FE-SKAT
+  }
+  est.cov.inv = ginv(est.cov.meta)
+  if (Method == "MV")
+  {
+    score.stat.meta.perm = score.beta.meta %*% est.cov.inv %*% score.beta.meta #FE-Burden
+  }
+  if (Method == "SKAT")
+  {
+    if(is.null(W))
+    {
+      W = diag(1,nrow = n.par.interest.beta)
+    }
+    #fesk.p = farebrother(score.stat.fesk,weight, h = rep(1,m-1), delta = rep(0,m-1), maxit = 100000,eps = 10^(-10), mode = 1)$Qq
+    score.stat.meta.perm = score.beta.meta %*% W %*% score.beta.meta
+  }
+  if (Method == "VC")
+  {
+    weight.cov.inv = eigen(est.cov.inv)$values #eign.val/sum(eign.val)
+    score.stat.meta.perm = score.beta.meta %*% est.cov.inv %*% est.cov.inv %*% score.beta.meta #SKAT-VC
+  }
+  if (Method == "Fisher")
+  {
+    score.stat.meta.perm = -2 * sum(log(score.pvalue.beta))
+  }
+
+
+  return(as.numeric(score.stat.meta.perm))
+
+}
+
 
