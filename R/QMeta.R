@@ -383,4 +383,73 @@
 
 }
 
+#' Title
+#'
+#' @param X.list
+#' @param X.par.index
+#' @param n.par.interest.beta
+#' @param col.index.list
+#' @param score.stat.meta
+#' @param S.beta.list.meta
+#' @param I.beta.list.meta
+#' @param start.nperm
+#' @param end.nperm
+#' @param n.one
+#' @param one.acc
+#' @param Method
+#' @param W
+#'
+#' @return
+#' @export
+#'
+#' @examples
+.resample.work.one.meta <- function(X.list, X.par.index, n.par.interest.beta, col.index.list, score.stat.meta, S.beta.list.meta, I.beta.list.meta, start.nperm, end.nperm, n.one, one.acc, Method = "MV", W = NULL){
+
+  n.one.new = n.one
+  one.acc.new = one.acc
+
+  for(k in start.nperm:end.nperm){
+
+    X.perm.list = list()
+    for(p in 1:length(X.list)){
+      idx = sample(1:n)
+      X.perm.list[[p]] = X.list[[p]]
+      X.perm.list[[p]][,X.par.index] = X.list[[p]][idx,X.par.index]
+    }
+
+    score.stat.meta.perm = try( .Score.test.stat.meta.4Gresampling(X.perm.list, X.par.index, n.par.interest.beta, col.index.list, S.beta.list.meta, I.beta.list.meta, Method = Method, W = NULL) )
+
+    if(class(score.stat.meta.perm) != "try-error"){
+
+      n.one.new = n.one.new + 1
+      if(score.stat.meta.perm >= score.stat.meta){
+        one.acc.new = one.acc.new + 1
+
+      }
+    }
+  }
+
+  if(one.acc.new < 1){
+    next.end.nperm = (end.nperm + 1) * 100 - 1;
+    flag = 1;
+
+  }else if(one.acc.new<10){
+    next.end.nperm = ( end.nperm + 1) * 10 - 1;
+    flag = 1;
+
+  }
+  #   else if(one.acc.new<20){
+  #     next.end.nperm = ( end.nperm + 1) * 5 - 1;
+  #     flag = 1;
+  #
+  #   }
+  else{
+    next.end.nperm = ( end.nperm + 1) - 1;
+    flag = 0;
+  }
+
+  return(list(n.one.new=n.one.new, one.acc.new=one.acc.new, flag=flag, next.end.nperm=next.end.nperm))
+
+}
+
 
