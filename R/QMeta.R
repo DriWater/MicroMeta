@@ -817,7 +817,6 @@ QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "MV", Weight = NULL, m
     p.sort = sort(score.tmp)
     #fdr.alpha = 0.05
 
-    # change 04/17/2016
     reject = rep(0, m.test)
     tmp = which(p.sort<=(1:m.test)*fdr.alpha/m.test)
     if(length(tmp)>0){
