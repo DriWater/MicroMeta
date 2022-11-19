@@ -383,26 +383,6 @@
 
 }
 
-#' Title
-#'
-#' @param X.list
-#' @param X.par.index
-#' @param n.par.interest.beta
-#' @param col.index.list
-#' @param score.stat.meta
-#' @param S.beta.list.meta
-#' @param I.beta.list.meta
-#' @param start.nperm
-#' @param end.nperm
-#' @param n.one
-#' @param one.acc
-#' @param Method
-#' @param W
-#'
-#' @return
-#' @export
-#'
-#' @examples
 .resample.work.one.meta <- function(X.list, X.par.index, n.par.interest.beta, col.index.list, score.stat.meta, S.beta.list.meta, I.beta.list.meta, start.nperm, end.nperm, n.one, one.acc, Method = "MV", W = NULL){
 
   n.one.new = n.one
