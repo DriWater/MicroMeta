@@ -432,4 +432,406 @@
 
 }
 
+.Score.test.meta <- function(Y.list, X.list, X.par.index, seed=11, resample=FALSE, n.replicates=NULL, Method = "MV", Weight=NULL ){
+  stu.num = length(X.list)
+  W = Weight
+  m = ncol(Y.list[[1]])
+  # n = nrow(Y.list[[1]])
+  p = ncol(X.list[[1]])
+  n.OTU = length(Y.list)
+  n.par.interest.beta = (m-1)*length(X.par.index)
+
+  if(sum(X.par.index == 1)){
+    stop("Error: Testing parameters for the intercept is not informative. (Beta part)")
+  }
+  if(! Method %in% c('Fisher',"MV",'SKAT',"VC")){
+    stop("Error: Please Choose a Proper Meta-analysis Method")
+  }
+  if (length(unique(sapply(1:n.OTU,function(j) ncol(Y.list[[j]]))))!=1){
+    stop("Error: The taxon in each study should be the same")
+  }
+  if(!is.null(W))
+  {
+    if(!is.matrix(W))
+    {
+      W = as.matrix(W)
+      warning("The Weight Matrix of SKAT Method should be a matrix")
+    }
+    if (dim(W)[1] != n.par.interest.beta | dim(W)[2] != n.par.interest.beta)
+    {
+      stop("Error: The dimesion of Weight Matrix of SKAT Method should
+           equal to the number of beta parameter of interest")
+    }
+  }
+  if(is.null(X.par.index) || n==0){
+
+    score.stat.beta = NULL
+    score.beta = NULL
+    est.cov = NULL
+    score.pvalue.beta = NULL
+    n.par.interest.beta = NA
+    S.beta.list.meta = NULL
+    I.beta.list.meta = NULL
+
+
+  }else{
+    score.stat.beta = NULL
+    score.beta = NULL
+    est.cov = NULL
+    score.pvalue.beta = NULL
+    S.beta.list.meta = list()
+    I.beta.list.meta = list()
+    col.index.list = list()
+    par.index.list = list()
+    j = 0
+    for(i in 1:stu.num){
+      Y = Y.list[[i]]
+      col.index = which(colSums(Y)>0)
+      Y = Y[,col.index]
+      X = X.list[[i]]
+      # nY = rowSums(Y)
+      # nY.index = which(nY==0)
+      # if(length(nY.index)>0){
+      #   Y = Y[-nY.index, , drop=FALSE]
+      #   X = X[-nY.index, , drop=FALSE]
+      # }
+      if(length(col.index) <= 1){
+        next
+      }
+      col.index = col.index[-1]
+      n.beta = (m - 1)*p
+      tmp.one = try( .Score.test.stat(Y, X, X.par.index) )
+      if(class(tmp.one) == "try-error"){
+        score.stat.beta = score.stat.beta
+        score.beta = score.beta
+        est.cov = est.cov
+        score.pvalue.beta = score.pvalue.beta
+        S.beta.list.meta = S.beta.list.meta
+        I.beta.list.meta = I.beta.list.meta
+      }else{
+        j = j+1
+        #par.index.list[[j]] =  kronecker(((col.idx-1)*p), rep(1,length(X.par.index))) + X.par.index
+        col.index.list[[j]] = col.index - 1
+        score.stat.beta = append(score.stat.beta, tmp.one$score.stat.beta)
+        score.beta[[j]] = tmp.one$score.beta
+        est.cov[[j]] = tmp.one$est.cov
+        score.pvalue.beta = append(score.pvalue.beta, (1 - pchisq(tmp.one$score.stat.beta, n.par.interest.beta)))
+        S.beta.list.meta[[j]] = tmp.one$S.beta.list
+        I.beta.list.meta[[j]] = tmp.one$I.beta.list
+      }
+
+
+    }
+
+  }
+  if(j == 0){
+    score.pvalue = NA
+    n.par.interest.beta = NA
+    score.stat.meta = NA
+  }else{
+    score.beta.meta  = rep(0,n.par.interest.beta) ## A
+    est.cov.meta = matrix(0, nrow = n.par.interest.beta, ncol = n.par.interest.beta) ## B
+    for(i in 1:j)
+    {
+      score.beta.meta =  score.beta.meta +  score.beta[[i]]  #FE-Burden
+      est.cov.meta =  est.cov.meta + est.cov[[i]] #FE-SKAT
+    }
+    est.cov.inv = ginv(est.cov.meta)
+    if (Method == "MV")
+    {
+      score.stat.meta = score.beta.meta %*% est.cov.inv %*% score.beta.meta #FE-Burden
+      score.pvalue = 1- pchisq(score.stat.meta,df = n.par.interest.beta )
+      df = n.par.interest.beta
+    }
+    if (Method == "SKAT")
+    {
+      if(is.null(W))
+      {
+        W = diag(1,nrow = n.par.interest.beta)
+      }
+      #fesk.p = farebrother(score.stat.fesk,weight, h = rep(1,m-1), delta = rep(0,m-1), maxit = 100000,eps = 10^(-10), mode = 1)$Qq
+      eigen.cov = eigen(est.cov.meta)
+      eigen.cov.sqrt = eigen.cov$vectors %*% diag(sqrt(eigen.cov$values),nrow = length(eigen.cov$values)) %*% solve(eigen.cov$vectors)
+      weight.cov = eigen(eigen.cov.sqrt %*% W %*% eigen.cov.sqrt)$values #eign.val/sum(eign.val)
+      score.stat.meta = score.beta.meta %*% W %*% score.beta.meta
+      score.pvalue = davies(score.stat.meta,weight.cov, h = rep(1,n.par.interest.beta), delta = rep(0,n.par.interest.beta), sigma = 0, lim = 10000, acc = 0.0001)$Qq
+      score.pvalue = ifelse(score.pvalue>0,score.pvalue,1e-7)
+      df = n.par.interest.beta
+    }
+    if (Method == "VC"){
+      weight.cov.inv = eigen(est.cov.inv)$values #eign.val/sum(eign.val)
+      score.stat.meta = score.beta.meta %*% est.cov.inv %*% est.cov.inv %*% score.beta.meta #SKAT-VC
+      score.pvalue = davies(score.stat.meta,weight.cov.inv, h = rep(1,n.par.interest.beta), delta = rep(0,n.par.interest.beta), sigma = 0, lim = 10000, acc = 0.0001)$Qq
+      score.pvalue = ifelse(score.pvalue>0,score.pvalue,0)
+      df = n.par.interest.beta
+    }
+    if (Method == "Fisher")
+    {
+      score.stat.meta = -2 * sum(log(score.pvalue.beta))
+      score.pvalue = .F.test(score.pvalue.beta)
+      df = length(score.pvalue.beta)
+    }
+  }
+  beta.meta.results = list(score.stat = score.stat.meta, score.pvalue = score.pvalue, df = df, score.pvalue.beta = score.pvalue.beta)
+
+  if(resample){
+
+    set.seed(seed)
+    if(!is.na(score.stat.meta)){
+
+      n.one = 0
+      one.acc = 0
+
+      start.nperm = 1;
+      end.nperm = min(100,n.replicates);
+      flag = 1
+      while(flag & end.nperm <= n.replicates){
+
+        results = .resample.work.one.meta(X.list, X.par.index, n.par.interest.beta, col.index.list, score.stat.meta, S.beta.list.meta, I.beta.list.meta, start.nperm, end.nperm, n.one, one.acc, Method = Method, W = W)
+        n.one = results$n.one.new
+        one.acc = results$one.acc.new
+        flag = results$flag
+        next.end.nperm = results$next.end.nperm
+
+        if(flag){
+          start.nperm = end.nperm + 1;
+          end.nperm = next.end.nperm;
+
+        }
+
+        if(start.nperm < n.replicates & end.nperm > n.replicates){
+          #warning(paste( "Inaccurate pvalue with", n.replicates, "permutations"))
+          results = .resample.work.one.meta(X.list, X.par.index, n.par.interest.beta, col.index.list, score.stat.meta, S.beta.list.meta, I.beta.list.meta, start.nperm, end.nperm, n.one, one.acc, Method = Method, W = W)
+          n.one = results$n.one.new
+          one.acc = results$one.acc.new
+
+        }
+
+      }
+
+
+      #      print(paste("Final number of resamplings: ", n.one) )
+      #      if(n.one<end.nperm/2){
+      #        print("Number of resamplings too small for one-part test")
+      #      }
+
+      tmp = (one.acc+1)/(n.one+1)
+
+      #print(n.one)
+      #print(one.acc)
+
+    }else{
+
+      tmp = NA
+    }
+
+    beta.meta.results = c(beta.meta.results, score.Rpvalue = tmp)
+
+
+  }
+
+  return(beta.meta.results)
+}
+
+
+QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "MV", Weight = NULL, min.depth=0, n.perm=NULL,   fdr.alpha=0.05){
+  n.sample = n.perm
+  W = Weight
+  n.OTU = length(OTU)
+  n.X = length(X)
+  drop.col = NULL
+  if(n.OTU != n.X)
+  {
+    stop("The study number of OTU table and Covariate should be the same")
+  }
+  if(length(unique(sapply(1:n.OTU,function(j) ncol(OTU[[j]]))))!= 1){
+    stop("The taxa in each study should be the same")
+  }
+  for(i in 1:n.OTU)
+  {
+    if(!is.matrix(OTU[[i]])){
+      warning(paste0("OTU table of study ", i, " is not a matrix"))
+      OTU[[i]] = as.matrix(OTU[[i]])
+    }
+
+    if(!is.matrix(X[[i]])){
+      warning(paste0("Covariate table of study ", i, " is not a matrix"))
+      X[[i]] = as.matrix(X[[i]])
+    }
+
+    if(nrow(OTU[[i]])!=nrow(X[[i]])){
+      stop(paste0("Samples in the OTU table and the covariate table of study ", i,
+                  " should be the same"))
+    }
+    remove.subject = which(rowSums(OTU[[i]])<min.depth)
+    if(length(remove.subject)>0){
+      print(paste("Remove",length(remove.subject), "samples with read depth less than", min.depth, "in OTU table", i))
+      X[[i]] = X[[i]][-remove.subject, ,drop=FALSE]
+      OTU[[i]] = OTU[[i]][-remove.subject, ,drop=FALSE]
+    }
+    drop.col = union(drop.col,which(colSums(OTU[[i]])==0))
+  }
+
+  if(missing(X.index)){
+    X.index = 1:ncol(X[[1]])
+  }
+
+  if(length(drop.col)>0){
+    count = lapply(1:n.OTU, function(j) OTU[[j]][,-drop.col, drop=FALSE])
+  }else{
+    count = OTU
+  }
+
+  X = lapply(1:n.OTU,function(j) cbind(1, X[[j]])) # add the intercept term
+  X.index = X.index + 1
+
+  if(is.null(Tax)){ # perform one test using all OTUs
+    if(is.null(n.resample)){
+      pval = as.matrix(.Score.test.meta(count, X, X.index, Method = Method, Weight = W)$score.pvalue)
+      colnames(pval) = paste0("Asymptotic-",Method)
+    }else{ # resampling test + asymptotic test
+      tmp = .Score.test.meta(count, X, X.index, resample=TRUE, n.replicates=n.resample)
+      pval = c(tmp$score.pvalue, tmp$score.Rpvalue)
+      names(pval) = c(paste0("Asymptotic-",Method), paste0("Resampling-",Method))
+    }
+    return( list(pval=pval) )
+  }else{ # perform tests for lineages
+
+    if(!is.matrix(Tax)){
+      warning("Tax table is not a matrix")
+      Tax = as.matrix(Tax)
+    }
+
+    if(length(drop.col)>0){
+      tax = Tax[-drop.col,,drop = FALSE]
+    }else{
+      tax = Tax
+    }
+    for(i in 1:n.OTU)
+    {
+      if( sum(colnames(count[[i]])!=rownames(tax))>0 ){
+        stop(psate0("Error: OTU IDs in OTU table ",i," are not consistent with OTU IDs in Tax table"))
+      }
+    }
+
+    n.rank = ncol(tax)
+    W.data.list = lapply(1:n.OTU,function(j) data.table(data.frame(tax, t(count[[j]]))))
+    otucols = lapply(1:n.OTU,function(j) names(W.data.list[[j]])[-(1:n.rank)])
+    n.level = n.rank-1
+
+    subtree = NULL
+    pval = NULL
+
+    for(k in 1:n.level){
+
+      Rank.low = paste("Rank", n.rank-k,sep="")
+      Rank.high = paste("Rank", n.rank-k+1,sep="")
+
+      tmp = table(tax[,n.rank-k])
+      level.uni = sort( names(tmp)[which(tmp>1)] )
+      m.level = length(level.uni)
+
+      tt = lapply(1:n.OTU, function(j) W.data.list[[j]][, lapply(.SD , sum, na.rm=TRUE), .SDcols=as.vector(unlist(otucols[j])), by=list( get(Rank.low), get(Rank.high) )])
+      tt = lapply(1:n.OTU,function(j) setnames(tt[[j]], 1:2, c(Rank.low, Rank.high)))
+      W.tax = as.vector(unlist(tt[[1]][, Rank.low, with=FALSE]))
+      W.count = lapply(1:n.OTU,function(j) tt[[j]][, otucols[[j]], with=FALSE])
+
+
+      for(j in 1:m.level){
+
+        Y = lapply(1:n.OTU, function(i) t(W.count[[i]][which(W.tax == level.uni[j]), , drop=FALSE]))
+
+        #Y = t(W.count[which(W.tax == "f__Veillonellaceae"), , drop=FALSE])
+
+        remove.index = NULL
+        for( i in 1:n.OTU)
+        {
+          remove.index = union(remove.index,which(colSums(Y[[i]])==0))
+        }
+
+        if(length(remove.index)==ncol(Y[[1]])){
+
+          #print("==skip:0==");
+          next
+
+
+        }else{
+
+          if(length(remove.index)>0){
+            Y = lapply(1:n.OTU, function(i) Y[[i]][, -remove.index, drop=FALSE])
+          }
+
+
+          if(ncol(Y[[1]])==1){
+
+            next
+            #print("==skip:1==");
+
+          }else{
+
+            subtree = c(subtree, level.uni[j])
+            #print(level.uni[j])
+            if(is.null(n.resample)){ # asymptotic test only
+
+              tmp = .Score.test.meta(Y, X, X.index, Method = Method, Weight = W)
+              pval = cbind(pval, c(tmp$score.pvalue))
+            }
+            else{
+              tmp = .Score.test.meta(Y, X, X.index, Method = Method, Weight = W, resample=TRUE, n.replicates=n.resample)
+              pval = cbind(pval, c(tmp$score.pvalue, tmp$score.Rpvalue) )
+
+            }
+
+          }
+
+        }
+      }# lineage loop
+
+
+    }# level loop
+
+
+    colnames(pval) = subtree
+    if(is.null(n.resample)){
+      rownames(pval) = paste0("Asymptotic-",Method)
+      score.tmp = pval[1,]
+    }else{
+      rownames(pval) = c(paste0("Asymptotic-",Method),paste0("Resampling-",Method))
+      score.tmp = pval[2,]
+      #print(pval)
+    }
+
+    # identify significant lineages
+    subtree.tmp = subtree
+    index.na = which(is.na(score.tmp))
+    if(length(index.na)>0){
+      score.tmp = score.tmp[-index.na]
+      subtree.tmp = subtree.tmp[-index.na]
+    }
+
+    #score.tmp[score.tmp==0] = 1e-4
+    m.test = length(score.tmp)
+
+    # Benjamini-Hochberg FDR control
+    index.p = order(score.tmp)
+    p.sort = sort(score.tmp)
+    #fdr.alpha = 0.05
+
+    # change 04/17/2016
+    reject = rep(0, m.test)
+    tmp = which(p.sort<=(1:m.test)*fdr.alpha/m.test)
+    if(length(tmp)>0){
+      index.reject = index.p[1:max(tmp)]
+      reject[index.reject] = 1
+    }
+
+    sig.lineage = subtree.tmp[reject==1]
+
+
+    return( list(lineage.pval=pval, sig.lineage=sig.lineage) )
+
+
+  }
+
+}
 
