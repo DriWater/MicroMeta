@@ -633,7 +633,22 @@
   return(beta.meta.results)
 }
 
-
+#' Title
+#'
+#' @param OTU
+#' @param X
+#' @param X.index
+#' @param Tax
+#' @param Method
+#' @param Weight
+#' @param min.depth
+#' @param n.perm
+#' @param fdr.alpha
+#'
+#' @return
+#' @export
+#'
+#' @examples
 QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "MV", Weight = NULL, min.depth=0, n.perm=NULL,   fdr.alpha=0.05){
   n.sample = n.perm
   W = Weight
