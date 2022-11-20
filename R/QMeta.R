@@ -857,3 +857,60 @@ QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "MV", Weight = NULL, m
 #           two Part Model             #
 #                                      #
 ########################################
+
+
+.Ei.beta.pos <- function(m, p, beta, X.i, Y.i){
+
+  Ei.out = rep(NA,m)
+
+  I.i = as.numeric(Y.i>0)
+
+  for(j in 1:(m-1)){
+
+    Ei.out[j] = I.i[j]*exp(beta[((j-1)*p+1):(j*p)] %*% X.i)
+
+  }
+
+
+  Ei.out[m] = I.i[m]
+
+
+  return (Ei.out)
+}
+
+.fun.neg.loglik.beta.pos <- function(beta, data){
+
+  Y = data$Y; X = data$X;
+
+  n = nrow(Y)
+  m = ncol(Y)
+  p = ncol(X)
+
+  n.beta = (m - 1)*p
+  loglik = 0
+
+  if(length(beta)!=n.beta){
+
+    warning("Dim of initial beta does not match the dim of covariates")
+
+  }else{
+
+    for(i in 1:n){
+
+      E.i = .Ei.beta.pos(m, p, beta, X[i,], Y[i,])
+      sum.E.i = sum(E.i)
+      P.i = E.i/sum.E.i
+      #Y.pos.index = which(Y[i,]>0)
+      #loglik = loglik + Y[i,Y.pos.index] %*% log(P.i[Y.pos.index])
+      index = which(Y[i,]>0)
+      loglik = loglik + Y[i,index] %*% log(P.i[index])
+      #       if(is.na(loglik)){
+      #         print(i); break;
+      #       }
+    }
+
+  }
+
+  return (-loglik)
+
+}
