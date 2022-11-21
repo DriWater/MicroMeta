@@ -1333,3 +1333,87 @@ QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "MV", Weight = NULL, m
 
 
 }
+
+.Score.test.stat.zero <- function(Y0, Z, Z.par.index, cor.stru){
+
+
+  Z.reduce = Z[,-Z.par.index,drop=FALSE]
+  n = nrow(Y0)
+  m = ncol(Y0)
+  p = ncol(Z)
+  p.reduce = ncol(Z.reduce)
+  outcome = NULL
+  id = NULL
+  cova.reduce = NULL
+  for(i in 1:n){
+
+    outcome = c(outcome, Y0[i,])
+    index.start = 1
+    index.end = p
+
+    index.start.reduce = 1
+    index.end.reduce = p.reduce
+
+    for(j in 1:m){
+
+      tmp = rep(0, m*p.reduce)
+      tmp[index.start.reduce:index.end.reduce] = Z.reduce[i,]
+      cova.reduce = rbind(cova.reduce, tmp )
+      index.start.reduce = index.start.reduce + p.reduce
+      index.end.reduce = index.end.reduce + p.reduce
+
+    }
+
+
+    id = c(id, rep(i, m))
+  }
+
+  #data.full = data.frame(outcome=outcome, cova, id = id, row.names=NULL)
+  data.reduce = data.frame(outcome=outcome, cova.reduce, id = id, row.names=NULL)
+  #gee.full = geeglm(outcome ~ .  - id - 1, data = data.full, id = factor(id), family="binomial", corstr= "independence")
+  gee.reduce = geeglm(outcome ~ . - id - 1, data = data.reduce, id = factor(id), family="binomial", corstr= "independence")
+  #wald.test = anova(gee.full, gee.reduce)
+
+
+  ########### perform score test
+  n.alpha = m *p
+  par.interest.index.alpha =  kronecker( ((0:(m-1))*p), rep(1,length(Z.par.index))) + Z.par.index
+  n.par.interest.alpha = length(par.interest.index.alpha)
+  est.reduce.alpha = rep(NA, n.alpha)
+  est.reduce.alpha[par.interest.index.alpha] = 0
+  est.reduce.alpha[-par.interest.index.alpha] = coef(gee.reduce)
+  est.reduce.scale = gee.reduce
+
+  data.alpha = list(Y=Y0, Z=Z)
+
+  tmp = .fun.score.i.alpha(est.reduce.alpha, data.alpha, save.list=TRUE)
+  Score.reduce.alpha = tmp$Score.alpha
+  # for resampling test
+  vA.list = tmp$vA.list
+  Vinv.list = tmp$Vinv.list
+  VY.list = tmp$VY.list
+
+  Hess.reduce.alpha =  .fun.hessian.alpha(est.reduce.alpha, data.alpha)
+  # re-organized the score statistics and Hessian matrix
+  Score.reduce.reorg = cbind( matrix(Score.reduce.alpha[,par.interest.index.alpha], ncol=n.par.interest.alpha), matrix(Score.reduce.alpha[,-par.interest.index.alpha], ncol=n.alpha - n.par.interest.alpha) )
+  Hess.reduce.reorg = rbind(cbind( matrix(Hess.reduce.alpha[par.interest.index.alpha, par.interest.index.alpha], nrow=n.par.interest.alpha), matrix(Hess.reduce.alpha[par.interest.index.alpha, -par.interest.index.alpha], nrow=n.par.interest.alpha) ),
+                            cbind( matrix(Hess.reduce.alpha[-par.interest.index.alpha, par.interest.index.alpha], nrow=n.alpha - n.par.interest.alpha), matrix(Hess.reduce.alpha[-par.interest.index.alpha, -par.interest.index.alpha], nrow= n.alpha - n.par.interest.alpha)))
+
+
+  A = colSums(Score.reduce.reorg)[1:n.par.interest.alpha]
+
+  B1 = cbind(diag(n.par.interest.alpha), -Hess.reduce.reorg[(1:n.par.interest.alpha), ((n.par.interest.alpha+1):n.alpha)] %*% ginv(Hess.reduce.reorg[((n.par.interest.alpha+1):n.alpha), ((n.par.interest.alpha+1):n.alpha)]) )
+
+  B2 =  matrix(0, n.alpha, n.alpha)
+  for(i in 1:n){
+    B2 = B2 + Score.reduce.reorg[i,] %o% Score.reduce.reorg[i,]
+  }
+
+  B = B1 %*% B2 %*% t(B1)
+  score.stat.alpha = A %*% ginv(B) %*% A
+  score.pvalue.alpha = 1 - pchisq(score.stat.alpha, n.par.interest.alpha)
+
+
+  return(list(score.df.alpha=n.par.interest.alpha, score.stat.alpha = score.stat.alpha, score.alpha = A, est.cov.zero=B, score.pvalue.alpha=score.pvalue.alpha, vA.list=vA.list, Vinv.list=Vinv.list, VY.list=VY.list )   )
+
+}
