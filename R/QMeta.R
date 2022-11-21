@@ -1180,3 +1180,78 @@ QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "MV", Weight = NULL, m
 
 }
 
+.Pi.alpha<-function(m, p, alpha, X.i){
+
+  Pi.out = rep(NA,m)
+
+  for(j in 1:m){
+
+    tmp = exp(alpha[((j-1)*p+1):(j*p)] %*% X.i)
+    if(is.infinite(tmp)){
+      Pi.out[j] = 1
+    }else{
+      Pi.out[j] = tmp/(tmp + 1)
+    }
+
+  }
+
+
+  return (Pi.out)
+}
+
+.fun.score.i.alpha <- function(alpha, data, save.list=FALSE){
+
+  Y = data$Y; Z = data$Z;
+
+  n = nrow(Y)
+  m = ncol(Y)
+  p = ncol(Z)
+
+  vA.list = list()
+  Vinv.list = list()
+  VY.list = list()
+
+  n.alpha = m*p
+
+  if(length(alpha)!=n.alpha){
+
+    warning("Dim of initial alpha does not match the dim of covariates")
+
+  }else{
+
+    Score.alpha.i = matrix(0, n, n.alpha)
+    nY = rowSums(Y)
+
+    for(i in 1:n){
+
+      Pi.i = .Pi.alpha(m, p, alpha, Z[i,])
+      vA.tmp = Pi.i*(1-Pi.i)
+      A.i = .diag2(vA.tmp)
+      t.D.i = kronecker( A.i, as.matrix(Z[i,], ncol=1) )
+      V.i = A.i # independent cor structure
+
+      tmp.V.i = ginv(V.i)
+      tmp.VY = tmp.V.i %*% (Y[i,] - Pi.i)
+      Score.alpha.i[i,] = t.D.i %*% tmp.VY
+
+      if(save.list){
+        vA.list[[i]] = vA.tmp
+        Vinv.list[[i]] = tmp.V.i
+        VY.list[[i]] = tmp.VY
+      }
+    }
+
+
+  }
+
+  if(save.list){
+
+    return ( list(Score.alpha=Score.alpha.i, vA.list = vA.list, Vinv.list = Vinv.list, VY.list=VY.list) )
+
+  }else{
+
+    return (Score.alpha.i)
+  }
+
+}
+
