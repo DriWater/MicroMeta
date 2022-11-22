@@ -1255,7 +1255,6 @@ QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "MV", Weight = NULL, m
 
 }
 
-
 .Score.test.stat.pos <- function(Y, X, X.par.index){
 
   p = ncol(X)
@@ -1415,5 +1414,109 @@ QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "MV", Weight = NULL, m
 
 
   return(list(score.df.alpha=n.par.interest.alpha, score.stat.alpha = score.stat.alpha, score.alpha = A, est.cov.zero=B, score.pvalue.alpha=score.pvalue.alpha, vA.list=vA.list, Vinv.list=Vinv.list, VY.list=VY.list )   )
+
+}
+
+.Score.test.stat.zero.meta.4Gresampling <- function(Z.perm.list, Z.par.index, n.par.interest.alpha, col.zero.index.list, vA.list.meta, Vinv.list.meta, VY.list.meta, Method = "MV", W.zero = NULL){
+
+  W = W.zero
+  iter.num = length(Z.perm.list)
+  score.stat.alpha = NULL
+  score.alpha = NULL
+  score.pvalue.alpha = NULL
+  est.cov.zero = NULL
+
+  for ( j in 1:iter.num){
+
+    vA.list = vA.list.meta[[j]]
+    VY.list = VY.list.meta[[j]]
+    Vinv.list = Vinv.list.meta[[j]]
+    Z.perm = Z.perm.list[[j]]
+    p = ncol(Z.perm.list[[j]])
+    m.alpha = length(vA.list[[1]])
+    n.alpha = m.alpha*p
+    par.index.alpha =  kronecker( ((0:(m.alpha-1))*p), rep(1,length(Z.par.index))) + Z.par.index
+    n.par.alpha = length(par.index.alpha)
+    n = nrow(Z.perm)
+    Score.reduce.alpha.perm = matrix(0, n, n.alpha )
+    Hess.reduce.alpha.perm = matrix(0, n.alpha, n.alpha )
+    for(i in 1:n){
+
+      ###################################################
+      #                                                 #
+      #         alpha part: resampling Score test        #
+      #                                                 #
+      ###################################################
+      tD.tmp = kronecker(.diag2(vA.list[[i]]), as.matrix(Z.perm[i,], ncol=1))
+
+      Score.reduce.alpha.perm[i,] = Score.reduce.alpha.perm[i,] + tD.tmp %*% VY.list[[i]]
+
+      Hess.reduce.alpha.perm = Hess.reduce.alpha.perm + tD.tmp %*% Vinv.list[[i]] %*% t(tD.tmp)
+
+
+    }
+
+    # re-organized the score statistics and Hessian matrix
+    Score.reduce.reorg = cbind( matrix(Score.reduce.alpha.perm[,par.index.alpha], ncol=n.par.alpha), matrix(Score.reduce.alpha.perm[,-par.index.alpha], ncol=n.alpha - n.par.alpha) )
+    Hess.reduce.reorg = rbind(cbind( matrix(Hess.reduce.alpha.perm[par.index.alpha, par.index.alpha], nrow=n.par.alpha), matrix(Hess.reduce.alpha.perm[par.index.alpha, -par.index.alpha], nrow=n.par.alpha) ),
+                              cbind( matrix(Hess.reduce.alpha.perm[-par.index.alpha, par.index.alpha], nrow=n.alpha - n.par.alpha), matrix(Hess.reduce.alpha.perm[-par.index.alpha, -par.index.alpha], nrow= n.alpha - n.par.alpha)))
+
+
+    A = colSums(Score.reduce.reorg)[1:n.par.alpha]
+
+    B1 = cbind(diag(n.par.alpha), -Hess.reduce.reorg[(1:n.par.alpha), ((n.par.alpha+1):n.alpha)] %*% ginv(Hess.reduce.reorg[((n.par.alpha+1):n.alpha), ((n.par.alpha+1):n.alpha)]) )
+
+    B2 =  matrix(0, n.alpha, n.alpha)
+    for(i in 1:n){
+      B2 = B2 + Score.reduce.reorg[i,] %o% Score.reduce.reorg[i,]
+    }
+
+    B = B1 %*% B2 %*% t(B1)
+    score.stat.alpha.perm = A %*% ginv(B) %*% A
+    score.stat.alpha = append(score.stat.alpha, score.stat.alpha.perm)
+    score.alpha[[j]] = A
+    est.cov.zero[[j]] = B
+    score.pvalue.alpha = append(score.pvalue.alpha, (1 - pchisq(score.stat.alpha.perm, n.par.interest.alpha)))
+
+  }
+  score.alpha.meta  = rep(0,n.par.interest.alpha) ## A
+  est.cov.meta = matrix(0, nrow = n.par.interest.alpha, ncol = n.par.interest.alpha) ## B
+  for(i in 1:iter.num)
+  {
+    idx = col.zero.index.list[[i]]
+    score.alpha.meta[idx] =  score.alpha.meta[idx] +  score.alpha[[i]]  #FE-Burden
+    est.cov.meta[idx, idx] =  est.cov.meta[idx, idx] + est.cov.zero[[i]] #FE-SKAT
+  }
+  save.index.zero = which(abs(score.alpha.meta) >= 1e-7)
+  n.par.save.alpha = length(save.index.zero)
+  score.alpha.meta =  score.alpha.meta[save.index.zero]
+  est.cov.meta =  est.cov.meta[save.index.zero,save.index.zero]
+  est.cov.inv = ginv(est.cov.meta)
+  if (Method == "MV")
+  {
+    score.stat.alpha.perm = score.alpha.meta %*% est.cov.inv %*% score.alpha.meta #FE-Burden
+  }
+  if (Method == "SKAT")
+  {
+    if(is.null(W))
+    {
+      W = diag(1,nrow = n.par.save.alpha)
+    }
+    else{
+      W = W[save.index.zero,save.index.zero]
+    }
+    score.stat.alpha.perm = score.alpha.meta %*% W %*% score.alpha.meta
+  }
+  if (Method == "FE-VC")
+  {
+    weight.cov.inv = eigen(est.cov.inv)$values #eign.val/sum(eign.val)
+    score.stat.alpha.perm = score.alpha.meta %*% est.cov.inv %*% est.cov.inv %*% score.alpha.meta #SKAT-VC
+  }
+  if (Method == "Fisher")
+  {
+    score.stat.alpha.perm = -2 * sum(log(score.pvalue.alpha))
+  }
+
+  return(as.numeric(score.stat.alpha.perm))
 
 }
