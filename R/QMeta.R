@@ -1632,3 +1632,58 @@ QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "MV", Weight = NULL, m
   return(as.numeric(score.stat.beta.perm))
 
 }
+
+.resample.work.zero.meta <- function(Z.list, Z.par.index, n.par.interest.alpha, col.zero.index.list, score.stat.zero.meta, zero.vA.list.meta, zero.Vinv.list.meta, zero.VY.list.meta, start.nperm, end.nperm, n.zero, zero.acc, Method = "MV", W.zero = NULL){
+
+  iter.num = length(Z.list)
+  n.zero.new = n.zero
+  zero.acc.new = zero.acc
+
+  for(k in start.nperm:end.nperm){
+
+    perm.index = lapply(Z.list, function(i) sample(1:nrow(i)))
+
+    Z.perm.list = Z.list
+    for (i in 1:iter.num){
+      Z.perm.list[[i]][,Z.par.index] =  Z.perm.list[[i]][perm.index[[i]],Z.par.index]
+    }
+
+    score.stat.zero.meta.perm = try( .Score.test.stat.zero.meta.4Gresampling(Z.perm.list, Z.par.index,n.par.interest.alpha, col.zero.index.list, zero.vA.list.meta, zero.Vinv.list.meta, zero.VY.list.meta, Method = Method, W.zero = W.zero) )
+
+
+
+    if(class(score.stat.zero.meta.perm) != "try-error"){
+
+      n.zero.new = n.zero.new + 1
+      if(score.stat.zero.meta.perm >= score.stat.zero.meta){
+        zero.acc.new = zero.acc.new + 1
+
+      }
+    }
+
+
+  }
+
+  if(zero.acc.new < 1){
+    next.end.nperm = (end.nperm + 1) * 100 - 1;
+    flag = 1;
+
+  }else if(zero.acc.new<10){
+    next.end.nperm = ( end.nperm + 1) * 10 - 1;
+    flag = 1;
+
+  }
+  #   else if(one.acc.new<20){
+  #     next.end.nperm = ( end.nperm + 1) * 5 - 1;
+  #     flag = 1;
+  #
+  #   }
+  else{
+    next.end.nperm = ( end.nperm + 1) - 1;
+    flag = 0;
+  }
+
+  return(list(n.zero.new=n.zero.new, zero.acc.new=zero.acc.new,
+              flag=flag, next.end.nperm=next.end.nperm))
+
+}
