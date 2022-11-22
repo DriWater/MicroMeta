@@ -1687,3 +1687,62 @@ QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "MV", Weight = NULL, m
               flag=flag, next.end.nperm=next.end.nperm))
 
 }
+
+.resample.work.pos.meta <- function(X.list, X.par.index, X1.par.index.list, n.par.index.beta, par.index.pos.list, score.stat.pos.meta, index.subj.pos.list, index.cova.list, score.stat.pos, pos.S.beta.list, pos.I.beta.list, start.nperm, end.nperm, n.pos, pos.acc, Method = "MV", W.pos = NULL){
+
+  n = nrow(X)
+  n.pos.new = n.pos
+  pos.acc.new = pos.acc
+  iter.num = length(X.list)
+
+  for(k in start.nperm:end.nperm){
+
+    perm.index = lapply(X.list, function(i) sample(1:nrow(i)))
+    X.perm.list = X.list
+    for (i in 1:iter.num){
+      X.perm.list[[i]][,X.par.index] =  X.perm.list[[i]][perm.index[[i]],X.par.index]
+    }
+    # X1.perm = X.perm[index.subj.pos, , drop=FALSE]
+    # X1.perm = X1.perm[,c(1, index.cova), drop=FALSE]
+    X1.perm.list = lapply(1:iter.num, function(i) X.perm.list[[i]][index.subj.pos.list[[i]], , drop=FALSE])
+    X1.perm.list = lapply(1:iter.num, function(i) X1.perm.list[[i]][,c(1,index.cova.list[[i]]), drop = FALSE])
+
+    score.stat.pos.meta.perm = try( .Score.test.stat.pos.meta.4Gresampling(X1.perm.list, X1.par.index.list, n.par.interest.beta, par.index.pos.list, pos.S.beta.list, pos.I.beta.list, Method = "MV", W.pos = W.pos) )
+
+
+    if(class(score.stat.pos.meta.perm) != "try-error"){
+
+      n.pos.new = n.pos.new + 1
+      if(score.stat.pos.meta.perm >= score.stat.pos.meta){
+        pos.acc.new = pos.acc.new + 1
+
+      }
+    }
+
+
+
+  }
+
+  if(pos.acc.new < 1){
+    next.end.nperm = (end.nperm + 1) * 100 - 1;
+    flag = 1;
+
+  }else if(pos.acc.new<10){
+    next.end.nperm = ( end.nperm + 1) * 10 - 1;
+    flag = 1;
+
+  }
+  #   else if(one.acc.new<20){
+  #     next.end.nperm = ( end.nperm + 1) * 5 - 1;
+  #     flag = 1;
+  #
+  #   }
+  else{
+    next.end.nperm = ( end.nperm + 1) - 1;
+    flag = 0;
+  }
+
+  return(list(n.pos.new=n.pos.new, pos.acc.new=pos.acc.new,
+              flag=flag, next.end.nperm=next.end.nperm))
+
+}
