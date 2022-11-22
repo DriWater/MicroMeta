@@ -1746,3 +1746,133 @@ QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "MV", Weight = NULL, m
               flag=flag, next.end.nperm=next.end.nperm))
 
 }
+
+.resample.work.two.meta <- function(X.list, X.par.index, Z.list, Z.par.index, n.par.interest.beta, n.par.interest.alpha, col.pos.index.list, col.zero.index.list, index.subj.pos.list, index.cova.list, score.stat.pos.meta, score.stat.zero.meta, pos.S.beta.list, pos.I.beta.list, zero.vA.list.meta, zero.Vinv.list.meta, zero.VY.list.meta, Method = "MV",weight.cov.pos = NULL, weight.cov.zero = NULL, W.pos = NULL, W.zero = NULL, start.nperm, end.nperm, n.pos, pos.acc, n.zero, zero.acc, n.comb, comb.acc){
+  iter.num = length(X.list)
+  #n.par.interest.beta, par.index.pos.list,
+  n = nrow(X)
+
+  n.pos.new = n.pos
+  pos.acc.new = pos.acc
+
+  n.zero.new = n.zero
+  zero.acc.new = zero.acc
+
+  n.comb.new = n.comb
+  comb.acc.new = comb.acc
+
+  if(Method == "MV"){
+    score.stat.comb.meta = score.stat.pos.meta + score.stat.zero.meta
+  }
+
+  if(Method %in% c("SKAT","FE-VC")){
+    score.pos.pvalue =  davies(score.stat.pos.meta,weight.cov.pos, h = rep(1,length(weight.cov.pos)), delta = rep(0,length(weight.cov.pos)), sigma = 0, lim = 10000, acc = 0.0001)$Qq
+    score.pos.pvalue = ifelse(score.pos.pvalue>0,score.pos.pvalue,1e-7)
+    score.zero.pvalue = davies(score.stat.zero.meta,weight.cov.zero, h = rep(1,length(weight.cov.zero)), delta = rep(0,length(weight.cov.zero)), sigma = 0, lim = 10000, acc = 0.0001)$Qq
+    score.zero.pvalue = ifelse(score.zero.pvalue>0,score.zero.pvalue,1e-7)
+    score.stat.comb.meta = -2*(log(score.pos.pvalue)+log(score.zero.pvalue))
+  }
+  if(Method == "Fisher"){
+    score.stat.comb.meta = -2*(log(score.stat.pos.meta)+log(score.stat.zero.meta))
+  }
+
+  for(k in start.nperm:end.nperm){
+
+    perm.index = lapply(X.list, function(i) sample(1:nrow(i)))
+    X.perm.list = X.list
+    Z.perm.list = Z.list
+    X1.perm.list = list()
+    X1.par.index.list = list()
+    for (i in 1:iter.num){
+      X.perm.list[[i]][,X.par.index] =  X.perm.list[[i]][perm.index[[i]],X.par.index]
+      Z.perm.list[[i]][,Z.par.index] =  Z.perm.list[[i]][perm.index[[i]],Z.par.index]
+      index.cova = index.cova.list[[i]]
+      X1.par.index.ava = as.numeric( !is.na(match(X.par.index, index.cova))) # use 0/1 to indicate the index is still availiable or not
+      if( length(index.cova)<1 |(sum(X1.par.index.ava) != length(X.par.index))){
+        next
+      }
+      X1.perm.list[[i]] = X.perm.list[[i]][, c(1,index.cova), drop = FALSE]
+      X1.par.index = match(X.par.index, index.cova) + 1
+      X1.par.index.list[[i]] = X1.par.index
+    }
+    # X.perm = X
+    # X.perm[,X.par.index] = X.perm[perm.index,X.par.index]
+    # X1.perm = X.perm[-nY.index , , drop=FALSE]
+    # X1.perm = X1.perm[,c(1, index.cova), drop=FALSE]
+    #
+    # Z.perm = Z
+    # Z.perm[,Z.par.index] = Z.perm[perm.index,Z.par.index]
+
+
+    score.stat.pos.meta.perm = try( .Score.test.stat.pos.meta.4Gresampling(X1.perm.list, X1.par.index.list, n.par.interest.beta, col.pos.index.list, pos.S.beta.list, pos.I.beta.list, Method = Method, W.pos = W.pos) )
+    score.stat.zero.meta.perm = try( .Score.test.stat.zero.meta.4Gresampling(Z.perm.list, Z.par.index, n.par.interest.alpha, col.zero.index.list, zero.vA.list.meta, zero.Vinv.list.meta, zero.VY.list.meta , Method = Method, W.zero = W.zero) )
+
+
+    if(class(score.stat.pos.meta.perm) != "try-error"){
+
+      n.pos.new = n.pos.new + 1
+      if(score.stat.pos.meta.perm >= score.stat.pos.meta){
+        pos.acc.new = pos.acc.new + 1
+
+      }
+    }
+
+    if(class(score.stat.zero.meta.perm) != "try-error"){
+
+      n.zero.new = n.zero.new + 1
+      if(score.stat.zero.meta.perm >= score.stat.zero.meta){
+        zero.acc.new = zero.acc.new + 1
+
+      }
+    }
+
+    if(class(score.stat.pos.meta.perm) != "try-error" & class(score.stat.zero.meta.perm) != "try-error"){
+
+      if(Method == "MV"){
+        score.stat.comb.meta.perm = score.stat.pos.meta.perm + score.stat.zero.meta.perm
+      }
+
+      if(Method%in% c("SKAT","FE-VC")){
+        score.pos.perm.pvalue = davies(score.stat.pos.meta.perm,weight.cov.pos, h = rep(1,length(weight.cov.pos)), delta = rep(0,length(weight.cov.pos)), sigma = 0, lim = 10000, acc = 0.0001)$Qq
+        score.pos.perm.pvalue = ifelse(score.pos.perm.pvalue>0,score.pos.perm.pvalue,1e-7)
+        score.zero.perm.pvalue = davies(score.stat.zero.meta.perm,weight.cov.zero, h = rep(1,length(weight.cov.zero)), delta = rep(0,length(weight.cov.zero)), sigma = 0, lim = 10000, acc = 0.0001)$Qq
+        score.zero.perm.pvalue = ifelse(score.zero.perm.pvalue>0,score.zero.perm.pvalue,1e-7)
+        score.stat.comb.meta.perm = -2*(log(score.pos.perm.pvalue)+log(score.zero.perm.pvalue))
+      }
+      if(Method == "Fisher"){
+        score.stat.comb.meta.perm = -2*(log(score.stat.pos.meta.perm)+log(score.stat.zero.meta.perm))
+      }
+      n.comb.new = n.comb.new + 1
+      if(score.stat.comb.meta.perm >= score.stat.comb.meta){
+        comb.acc.new = comb.acc.new + 1
+
+      }
+    }
+
+  }
+
+  if(comb.acc.new < 1){
+    next.end.nperm = (end.nperm + 1) * 100 - 1;
+    flag = 1;
+
+  }else if(comb.acc.new<10){
+    next.end.nperm = ( end.nperm + 1) * 10 - 1;
+    flag = 1;
+
+  }
+  #   else if(one.acc.new<20){
+  #     next.end.nperm = ( end.nperm + 1) * 5 - 1;
+  #     flag = 1;
+  #
+  #   }
+  else{
+    next.end.nperm = ( end.nperm + 1) - 1;
+    flag = 0;
+  }
+
+  return(list(n.pos.new=n.pos.new, pos.acc.new=pos.acc.new,
+              n.zero.new=n.zero.new, zero.acc.new=zero.acc.new,
+              n.comb.new=n.comb.new, comb.acc.new=comb.acc.new,
+              flag=flag, next.end.nperm=next.end.nperm))
+
+}
