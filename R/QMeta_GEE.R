@@ -17,7 +17,7 @@
     }
   }
 
-  # no need for bases in GEE method
+  # no need for base in GEE method
   return(Pi.out)
 }
 
@@ -147,7 +147,7 @@
   score.stat.alpha <- A %*% ginv(B) %*% A
   score.pvalue.alpha <- 1 - pchisq(score.stat.alpha, n.par.interest.alpha)
 
-
+  # save the summary statistics for meta-analysis
   return(list(score.df.alpha = n.par.interest.alpha, score.stat.alpha = score.stat.alpha, score.alpha = A, est.cov.zero = B, score.pvalue.alpha = score.pvalue.alpha, vA.list = vA.list, Vinv.list = Vinv.list, VY.list = VY.list))
 }
 

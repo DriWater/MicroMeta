@@ -233,7 +233,7 @@
     score.stat.beta <- A %*% ginv(B) %*% A
   }
 
-  # restore those summary statistics for later use
+  # save those summary statistics for later use
   return(list(score.stat.beta = score.stat.beta, score.beta = A, est.cov = B, S.beta.list = S.beta.list, I.beta.list = I.beta.list))
 }
 
