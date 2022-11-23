@@ -1,6 +1,6 @@
 
 .F.test <- function(x) {
-  # Fisher's pvalue combination
+  # Fisher's p-value combination
   x.stat <- -2 * sum(log(x))
   return(1 - pchisq(x.stat, df = 2 * length(x)))
 }
@@ -18,7 +18,7 @@
 
 
 .Ei.beta <- function(m, p, beta, X.i, Y.i) {
-  # calculate the expoential of beta times X
+  # calculate the exponential of beta times X
   Ei.out <- rep(NA, m)
   for (j in 1:(m - 1)) {
     Ei.out[j] <- exp(beta[((j - 1) * p + 1):(j * p)] %*% X.i)

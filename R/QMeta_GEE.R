@@ -1,13 +1,13 @@
 
 ########################################
 #                                      #
-#           zero Part Model             #
+#       zero Part Model(GEE)           #
 #                                      #
 ########################################
 
 .Pi.alpha <- function(m, p, alpha, X.i) {
   Pi.out <- rep(NA, m)
-
+  # calculate the exponential of alpha times X
   for (j in 1:m) {
     tmp <- exp(alpha[((j - 1) * p + 1):(j * p)] %*% X.i)
     if (is.infinite(tmp)) {
@@ -17,11 +17,12 @@
     }
   }
 
-
+  # no need for bases in GEE method
   return(Pi.out)
 }
 
 .fun.score.i.alpha <- function(alpha, data, save.list = FALSE) {
+  # return  the negative log likelihood of estimated pi for each taxa
   Y <- data$Y
   Z <- data$Z
 
@@ -34,7 +35,7 @@
   VY.list <- list()
 
   n.alpha <- m * p
-
+  # check the dimension of alpha
   if (length(alpha) != n.alpha) {
     warning("Dim of initial alpha does not match the dim of covariates")
   } else {
@@ -59,7 +60,7 @@
       }
     }
   }
-
+  # save list for later permutation method
   if (save.list) {
     return(list(Score.alpha = Score.alpha.i, vA.list = vA.list, Vinv.list = Vinv.list, VY.list = VY.list))
   } else {
@@ -69,11 +70,12 @@
 
 
 .Score.test.stat.zero <- function(Y0, Z, Z.par.index, cor.stru) {
-  Z.reduce <- Z[, -Z.par.index, drop = FALSE]
+  Z.reduce <- Z[, -Z.par.index, drop = FALSE] # split the matrix according to the index of parameter of interest
   n <- nrow(Y0)
   m <- ncol(Y0)
   p <- ncol(Z)
   p.reduce <- ncol(Z.reduce)
+  # initialize
   outcome <- NULL
   id <- NULL
   cova.reduce <- NULL
@@ -96,7 +98,7 @@
 
     id <- c(id, rep(i, m))
   }
-
+  # estimate the parameter of interest
   # data.full = data.frame(outcome=outcome, cova, id = id, row.names=NULL)
   data.reduce <- data.frame(outcome = outcome, cova.reduce, id = id, row.names = NULL)
   # gee.full = geeglm(outcome ~ .  - id - 1, data = data.full, id = factor(id), family="binomial", corstr= "independence")
@@ -106,6 +108,7 @@
 
   ########### perform score test
   n.alpha <- m * p
+  # the index of parameters of interest in the Hessian matrix
   par.interest.index.alpha <- kronecker(((0:(m - 1)) * p), rep(1, length(Z.par.index))) + Z.par.index
   n.par.interest.alpha <- length(par.interest.index.alpha)
   est.reduce.alpha <- rep(NA, n.alpha)
@@ -149,8 +152,10 @@
 }
 
 .Score.test.stat.zero.meta.4Gresampling <- function(Z.perm.list, Z.par.index, n.par.interest.alpha, col.zero.index.list, vA.list.meta, Vinv.list.meta, VY.list.meta, Method = "MV", W.zero = NULL) {
+  # calculate the score statistics based on the shuffled sample
   W <- W.zero
-  iter.num <- length(Z.perm.list)
+  iter.num <- length(Z.perm.list) # determine the total study number
+  # initialize the test statistics
   score.stat.alpha <- NULL
   score.alpha <- NULL
   score.pvalue.alpha <- NULL
@@ -189,7 +194,7 @@
       cbind(matrix(Hess.reduce.alpha.perm[-par.index.alpha, par.index.alpha], nrow = n.alpha - n.par.alpha), matrix(Hess.reduce.alpha.perm[-par.index.alpha, -par.index.alpha], nrow = n.alpha - n.par.alpha))
     )
 
-
+    # reorganized the Score statistics and estimated covariance matrix
     A <- colSums(Score.reduce.reorg)[1:n.par.alpha]
 
     B1 <- cbind(diag(n.par.alpha), -Hess.reduce.reorg[(1:n.par.alpha), ((n.par.alpha + 1):n.alpha)] %*% ginv(Hess.reduce.reorg[((n.par.alpha + 1):n.alpha), ((n.par.alpha + 1):n.alpha)]))
@@ -206,23 +211,24 @@
     est.cov.zero[[j]] <- B
     score.pvalue.alpha <- append(score.pvalue.alpha, (1 - pchisq(score.stat.alpha.perm, n.par.interest.alpha)))
   }
-  score.alpha.meta <- rep(0, n.par.interest.alpha) ## A
+  score.alpha.meta <- rep(0, n.par.interest.alpha) ## initialize the score statistics with zeros
   est.cov.meta <- matrix(0, nrow = n.par.interest.alpha, ncol = n.par.interest.alpha) ## B
   for (i in 1:iter.num)
   {
     idx <- col.zero.index.list[[i]]
-    score.alpha.meta[idx] <- score.alpha.meta[idx] + score.alpha[[i]] # FE-Burden
-    est.cov.meta[idx, idx] <- est.cov.meta[idx, idx] + est.cov.zero[[i]] # FE-SKAT
+    score.alpha.meta[idx] <- score.alpha.meta[idx] + score.alpha[[i]]
+    est.cov.meta[idx, idx] <- est.cov.meta[idx, idx] + est.cov.zero[[i]]
   }
+  # keep the index of those variable which score statistics is greater than 0
   save.index.zero <- which(abs(score.alpha.meta) >= 1e-7)
   n.par.save.alpha <- length(save.index.zero)
   score.alpha.meta <- score.alpha.meta[save.index.zero]
   est.cov.meta <- est.cov.meta[save.index.zero, save.index.zero]
   est.cov.inv <- ginv(est.cov.meta)
   if (Method == "MV") {
-    score.stat.alpha.perm <- score.alpha.meta %*% est.cov.inv %*% score.alpha.meta # FE-Burden
+    score.stat.alpha.perm <- score.alpha.meta %*% est.cov.inv %*% score.alpha.meta # Mulivariate test
   }
-  if (Method == "SKAT") {
+  if (Method == "SKAT") { # fixed effect SKAT test
     if (is.null(W)) {
       W <- diag(1, nrow = n.par.save.alpha)
     } else {
@@ -231,11 +237,11 @@
     score.stat.alpha.perm <- score.alpha.meta %*% W %*% score.alpha.meta
   }
   if (Method == "FE-VC") {
-    weight.cov.inv <- eigen(est.cov.inv)$values # eign.val/sum(eign.val)
+    weight.cov.inv <- eigen(est.cov.inv)$values # Fixed effect variance component test
     score.stat.alpha.perm <- score.alpha.meta %*% est.cov.inv %*% est.cov.inv %*% score.alpha.meta # SKAT-VC
   }
   if (Method == "Fisher") {
-    score.stat.alpha.perm <- -2 * sum(log(score.pvalue.alpha))
+    score.stat.alpha.perm <- -2 * sum(log(score.pvalue.alpha)) # Fisher's p-value combination
   }
 
   return(as.numeric(score.stat.alpha.perm))
