@@ -1,0 +1,896 @@
+
+########################################
+#                                      #
+#           two Part Model             #
+#                                      #
+########################################
+
+
+.Ei.beta.pos <- function(m, p, beta, X.i, Y.i) {
+  Ei.out <- rep(NA, m)
+
+  I.i <- as.numeric(Y.i > 0)
+
+  for (j in 1:(m - 1)) {
+    Ei.out[j] <- I.i[j] * exp(beta[((j - 1) * p + 1):(j * p)] %*% X.i)
+  }
+
+
+  Ei.out[m] <- I.i[m]
+
+
+  return(Ei.out)
+}
+
+.fun.neg.loglik.beta.pos <- function(beta, data) {
+  Y <- data$Y
+  X <- data$X
+
+  n <- nrow(Y)
+  m <- ncol(Y)
+  p <- ncol(X)
+
+  n.beta <- (m - 1) * p
+  loglik <- 0
+
+  if (length(beta) != n.beta) {
+    warning("Dim of initial beta does not match the dim of covariates")
+  } else {
+    for (i in 1:n) {
+      E.i <- .Ei.beta.pos(m, p, beta, X[i, ], Y[i, ])
+      sum.E.i <- sum(E.i)
+      P.i <- E.i / sum.E.i
+      # Y.pos.index = which(Y[i,]>0)
+      # loglik = loglik + Y[i,Y.pos.index] %*% log(P.i[Y.pos.index])
+      index <- which(Y[i, ] > 0)
+      loglik <- loglik + Y[i, index] %*% log(P.i[index])
+      #       if(is.na(loglik)){
+      #         print(i); break;
+      #       }
+    }
+  }
+
+  return(-loglik)
+}
+
+
+
+.fun.neg.score.beta.pos <- function(beta, data) {
+  Y <- data$Y
+  X <- data$X
+
+  n <- nrow(Y)
+  m <- ncol(Y)
+  p <- ncol(X)
+
+  n.beta <- (m - 1) * p
+
+  if (length(beta) != n.beta) {
+    warning("Dim of initial beta does not match the dim of covariates")
+  } else {
+    Score.beta <- rep(0, n.beta)
+    nY <- rowSums(Y)
+
+    for (i in 1:n) {
+      E.i <- .Ei.beta.pos(m, p, beta, X[i, ], Y[i, ])
+      sum.E.i <- sum(E.i)
+      P.i <- E.i / sum.E.i
+      Score.beta <- Score.beta + kronecker(matrix(Y[i, -m] - nY[i] * P.i[-m], ncol = 1), matrix(X[i, ], ncol = 1))
+    }
+
+    return(-Score.beta)
+  }
+}
+
+.fun.score.i.beta.pos <- function(beta, data) {
+  Y <- data$Y
+  X <- data$X
+
+  n <- nrow(Y)
+  m <- ncol(Y)
+  p <- ncol(X)
+
+  n.beta <- (m - 1) * p
+
+  if (length(beta) != n.beta) {
+    warning("Dim of initial beta does not match the dim of covariates")
+  } else {
+    Score.beta.i <- matrix(0, n, n.beta)
+    nY <- rowSums(Y)
+
+    for (i in 1:n) {
+      E.i <- .Ei.beta.pos(m, p, beta, X[i, ], Y[i, ])
+      sum.E.i <- sum(E.i)
+      P.i <- E.i / sum.E.i
+
+      # add 03/28/2016
+      #       if(sum.E.i==0){
+      #         P.i = rep(0,m)
+      #       }
+
+      Score.beta.i[i, ] <- kronecker(matrix(Y[i, -m] - nY[i] * P.i[-m], ncol = 1), matrix(X[i, ], ncol = 1))
+    }
+
+    return(Score.beta.i)
+  }
+}
+
+.fun.hessian.beta.pos <- function(beta, data, save.list = FALSE) {
+  Y <- data$Y
+  X <- data$X
+
+  n <- nrow(Y)
+  m <- ncol(Y)
+  p <- ncol(X)
+  n.beta <- (m - 1) * p
+
+  if (length(beta) != n.beta) {
+    print("Waring: dim of beta is not the same as beta\n")
+  } else {
+    Hessian.beta <- matrix(0, nrow = n.beta, ncol = n.beta)
+    nY <- rowSums(Y)
+    I.beta.list <- list()
+
+    for (i in 1:n) {
+      E.i <- .Ei.beta.pos(m, p, beta, X[i, ], Y[i, ])
+      sum.E.i <- sum(E.i)
+      P.i <- E.i / sum.E.i
+
+      ## tmp.beta
+      # tmp.beta =  (E.i[-m] %o% E.i[-m])*nY[i]/sum.E.i^2
+      tmp.beta <- as.matrix(P.i[-m] %o% P.i[-m])
+      diag(tmp.beta) <- diag(tmp.beta) - P.i[-m]
+      tmp.beta <- nY[i] * tmp.beta
+      # tmp.beta[is.na(tmp.beta)] = 0  ## add 03/28/2016
+
+      Hessian.beta <- Hessian.beta + kronecker(tmp.beta, (X[i, ] %o% X[i, ]))
+
+      if (save.list) {
+        I.beta.list[[i]] <- tmp.beta
+      }
+    }
+
+
+    if (save.list) {
+      return(list(Hessian.beta = Hessian.beta, I.beta.list = I.beta.list))
+    } else {
+      return(Hessian.beta)
+    }
+  }
+}
+
+
+.fun.neg.score.beta.pos <- function(beta, data) {
+  Y <- data$Y
+  X <- data$X
+
+  n <- nrow(Y)
+  m <- ncol(Y)
+  p <- ncol(X)
+
+  n.beta <- (m - 1) * p
+
+  if (length(beta) != n.beta) {
+    warning("Dim of initial beta does not match the dim of covariates")
+  } else {
+    Score.beta <- rep(0, n.beta)
+    nY <- rowSums(Y)
+
+    for (i in 1:n) {
+      E.i <- .Ei.beta.pos(m, p, beta, X[i, ], Y[i, ])
+      sum.E.i <- sum(E.i)
+      P.i <- E.i / sum.E.i
+      Score.beta <- Score.beta + kronecker(matrix(Y[i, -m] - nY[i] * P.i[-m], ncol = 1), matrix(X[i, ], ncol = 1))
+    }
+
+    return(-Score.beta)
+  }
+}
+
+.fun.score.i.beta.pos <- function(beta, data) {
+  Y <- data$Y
+  X <- data$X
+
+  n <- nrow(Y)
+  m <- ncol(Y)
+  p <- ncol(X)
+
+  n.beta <- (m - 1) * p
+
+  if (length(beta) != n.beta) {
+    warning("Dim of initial beta does not match the dim of covariates")
+  } else {
+    Score.beta.i <- matrix(0, n, n.beta)
+    nY <- rowSums(Y)
+
+    for (i in 1:n) {
+      E.i <- .Ei.beta.pos(m, p, beta, X[i, ], Y[i, ])
+      sum.E.i <- sum(E.i)
+      P.i <- E.i / sum.E.i
+
+      # add 03/28/2016
+      #       if(sum.E.i==0){
+      #         P.i = rep(0,m)
+      #       }
+
+      Score.beta.i[i, ] <- kronecker(matrix(Y[i, -m] - nY[i] * P.i[-m], ncol = 1), matrix(X[i, ], ncol = 1))
+    }
+
+    return(Score.beta.i)
+  }
+}
+
+.fun.hessian.beta.pos <- function(beta, data, save.list = FALSE) {
+  Y <- data$Y
+  X <- data$X
+
+  n <- nrow(Y)
+  m <- ncol(Y)
+  p <- ncol(X)
+  n.beta <- (m - 1) * p
+
+  if (length(beta) != n.beta) {
+    print("Waring: dim of beta is not the same as beta\n")
+  } else {
+    Hessian.beta <- matrix(0, nrow = n.beta, ncol = n.beta)
+    nY <- rowSums(Y)
+    I.beta.list <- list()
+
+    for (i in 1:n) {
+      E.i <- .Ei.beta.pos(m, p, beta, X[i, ], Y[i, ])
+      sum.E.i <- sum(E.i)
+      P.i <- E.i / sum.E.i
+
+      ## tmp.beta
+      # tmp.beta =  (E.i[-m] %o% E.i[-m])*nY[i]/sum.E.i^2
+      tmp.beta <- as.matrix(P.i[-m] %o% P.i[-m])
+      diag(tmp.beta) <- diag(tmp.beta) - P.i[-m]
+      tmp.beta <- nY[i] * tmp.beta
+      # tmp.beta[is.na(tmp.beta)] = 0  ## add 03/28/2016
+
+      Hessian.beta <- Hessian.beta + kronecker(tmp.beta, (X[i, ] %o% X[i, ]))
+
+      if (save.list) {
+        I.beta.list[[i]] <- tmp.beta
+      }
+    }
+
+
+    if (save.list) {
+      return(list(Hessian.beta = Hessian.beta, I.beta.list = I.beta.list))
+    } else {
+      return(Hessian.beta)
+    }
+  }
+}
+
+.Pi.alpha <- function(m, p, alpha, X.i) {
+  Pi.out <- rep(NA, m)
+
+  for (j in 1:m) {
+    tmp <- exp(alpha[((j - 1) * p + 1):(j * p)] %*% X.i)
+    if (is.infinite(tmp)) {
+      Pi.out[j] <- 1
+    } else {
+      Pi.out[j] <- tmp / (tmp + 1)
+    }
+  }
+
+
+  return(Pi.out)
+}
+
+.fun.score.i.alpha <- function(alpha, data, save.list = FALSE) {
+  Y <- data$Y
+  Z <- data$Z
+
+  n <- nrow(Y)
+  m <- ncol(Y)
+  p <- ncol(Z)
+
+  vA.list <- list()
+  Vinv.list <- list()
+  VY.list <- list()
+
+  n.alpha <- m * p
+
+  if (length(alpha) != n.alpha) {
+    warning("Dim of initial alpha does not match the dim of covariates")
+  } else {
+    Score.alpha.i <- matrix(0, n, n.alpha)
+    nY <- rowSums(Y)
+
+    for (i in 1:n) {
+      Pi.i <- .Pi.alpha(m, p, alpha, Z[i, ])
+      vA.tmp <- Pi.i * (1 - Pi.i)
+      A.i <- .diag2(vA.tmp)
+      t.D.i <- kronecker(A.i, as.matrix(Z[i, ], ncol = 1))
+      V.i <- A.i # independent cor structure
+
+      tmp.V.i <- ginv(V.i)
+      tmp.VY <- tmp.V.i %*% (Y[i, ] - Pi.i)
+      Score.alpha.i[i, ] <- t.D.i %*% tmp.VY
+
+      if (save.list) {
+        vA.list[[i]] <- vA.tmp
+        Vinv.list[[i]] <- tmp.V.i
+        VY.list[[i]] <- tmp.VY
+      }
+    }
+  }
+
+  if (save.list) {
+    return(list(Score.alpha = Score.alpha.i, vA.list = vA.list, Vinv.list = Vinv.list, VY.list = VY.list))
+  } else {
+    return(Score.alpha.i)
+  }
+}
+
+.Score.test.stat.pos <- function(Y, X, X.par.index) {
+  p <- ncol(X)
+
+  nY <- rowSums(Y)
+
+  n <- nrow(Y)
+  m <- ncol(Y)
+  n.beta <- (m - 1) * p
+
+  if (sum(X.par.index == 1)) {
+    stop("Error: Testing parameters for the intercept is not informative. (Beta part)")
+  }
+
+  if (is.null(X.par.index) || n == 0) {
+    score.stat.beta <- NA
+  } else {
+    X.reduce <- X[, -X.par.index, drop = FALSE]
+    p.reduce <- p - length(X.par.index)
+    par.interest.index.beta <- kronecker(((0:(m - 2)) * p), rep(1, length(X.par.index))) + X.par.index ## (m-1) * p
+
+    n.par.interest.beta <- length(par.interest.index.beta)
+
+    beta.ini.reduce <- rep(0, (p.reduce * (m - 1)))
+
+    data.reduce.beta <- list(Y = Y, X = X.reduce)
+
+    est.reduce.beta <- rep(NA, n.beta)
+    est.reduce.beta[par.interest.index.beta] <- 0
+    # est.reduce.beta[-par.interest.index.beta] = optim(par=beta.ini.reduce, fn=.fun.neg.loglik.beta.pos, gr=.fun.neg.score.beta.pos, data = data.reduce.beta)$par
+    # change 04/08/2016
+    est.reduce.beta[-par.interest.index.beta] <- optim(par = beta.ini.reduce, fn = .fun.neg.loglik.beta.pos, gr = .fun.neg.score.beta.pos, data = data.reduce.beta, method = "BFGS")$par
+
+
+    data.beta <- list(Y = Y, X = X)
+    Score.reduce.beta <- .fun.score.i.beta.pos(est.reduce.beta, data.beta)
+
+    # for resampling: S.beta.list, I.beta.list
+    S.beta.list <- lapply(1:n, function(j) Score.reduce.beta[j, ((1:(m - 1)) * p - p + 1)])
+    tmp <- .fun.hessian.beta.pos(est.reduce.beta, data.beta, save.list = TRUE)
+    I.beta.list <- tmp$I.beta.list
+
+    Hess.reduce.beta <- tmp$Hessian.beta
+    # Hess.reduce.beta =  .fun.hessian.beta.pos(est.reduce.beta, data.beta)
+
+    # re-organized the score statistics and Hessian matrix
+    Score.reduce.reorg <- cbind(matrix(Score.reduce.beta[, par.interest.index.beta], ncol = n.par.interest.beta), matrix(Score.reduce.beta[, -par.interest.index.beta], ncol = n.beta - n.par.interest.beta))
+    Hess.reduce.reorg <- rbind(
+      cbind(matrix(Hess.reduce.beta[par.interest.index.beta, par.interest.index.beta], nrow = n.par.interest.beta), matrix(Hess.reduce.beta[par.interest.index.beta, -par.interest.index.beta], nrow = n.par.interest.beta)),
+      cbind(matrix(Hess.reduce.beta[-par.interest.index.beta, par.interest.index.beta], nrow = n.beta - n.par.interest.beta), matrix(Hess.reduce.beta[-par.interest.index.beta, -par.interest.index.beta], nrow = n.beta - n.par.interest.beta))
+    )
+
+
+    A <- colSums(Score.reduce.reorg)[1:n.par.interest.beta]
+
+    B1 <- cbind(diag(n.par.interest.beta), -Hess.reduce.reorg[(1:n.par.interest.beta), ((n.par.interest.beta + 1):n.beta)] %*% ginv(Hess.reduce.reorg[((n.par.interest.beta + 1):n.beta), ((n.par.interest.beta + 1):n.beta)]))
+
+
+    B2 <- matrix(0, n.beta, n.beta)
+
+    # change in 04/08/2016(warning! need to change this step in the resampling function too)
+    for (i in 1:n) {
+      B2 <- B2 + Score.reduce.reorg[i, ] %o% Score.reduce.reorg[i, ]
+    }
+
+    B <- B1 %*% B2 %*% t(B1)
+    score.stat.beta <- A %*% ginv(B) %*% A
+  }
+
+
+  return(list(score.stat.beta = score.stat.beta, score.beta = A, est.cov.pos = B, S.beta.list = S.beta.list, I.beta.list = I.beta.list))
+}
+
+.Score.test.stat.zero <- function(Y0, Z, Z.par.index, cor.stru) {
+  Z.reduce <- Z[, -Z.par.index, drop = FALSE]
+  n <- nrow(Y0)
+  m <- ncol(Y0)
+  p <- ncol(Z)
+  p.reduce <- ncol(Z.reduce)
+  outcome <- NULL
+  id <- NULL
+  cova.reduce <- NULL
+  for (i in 1:n) {
+    outcome <- c(outcome, Y0[i, ])
+    index.start <- 1
+    index.end <- p
+
+    index.start.reduce <- 1
+    index.end.reduce <- p.reduce
+
+    for (j in 1:m) {
+      tmp <- rep(0, m * p.reduce)
+      tmp[index.start.reduce:index.end.reduce] <- Z.reduce[i, ]
+      cova.reduce <- rbind(cova.reduce, tmp)
+      index.start.reduce <- index.start.reduce + p.reduce
+      index.end.reduce <- index.end.reduce + p.reduce
+    }
+
+
+    id <- c(id, rep(i, m))
+  }
+
+  # data.full = data.frame(outcome=outcome, cova, id = id, row.names=NULL)
+  data.reduce <- data.frame(outcome = outcome, cova.reduce, id = id, row.names = NULL)
+  # gee.full = geeglm(outcome ~ .  - id - 1, data = data.full, id = factor(id), family="binomial", corstr= "independence")
+  gee.reduce <- geeglm(outcome ~ . - id - 1, data = data.reduce, id = factor(id), family = "binomial", corstr = "independence")
+  # wald.test = anova(gee.full, gee.reduce)
+
+
+  ########### perform score test
+  n.alpha <- m * p
+  par.interest.index.alpha <- kronecker(((0:(m - 1)) * p), rep(1, length(Z.par.index))) + Z.par.index
+  n.par.interest.alpha <- length(par.interest.index.alpha)
+  est.reduce.alpha <- rep(NA, n.alpha)
+  est.reduce.alpha[par.interest.index.alpha] <- 0
+  est.reduce.alpha[-par.interest.index.alpha] <- coef(gee.reduce)
+  est.reduce.scale <- gee.reduce
+
+  data.alpha <- list(Y = Y0, Z = Z)
+
+  tmp <- .fun.score.i.alpha(est.reduce.alpha, data.alpha, save.list = TRUE)
+  Score.reduce.alpha <- tmp$Score.alpha
+  # for resampling test
+  vA.list <- tmp$vA.list
+  Vinv.list <- tmp$Vinv.list
+  VY.list <- tmp$VY.list
+
+  Hess.reduce.alpha <- .fun.hessian.alpha(est.reduce.alpha, data.alpha)
+  # re-organized the score statistics and Hessian matrix
+  Score.reduce.reorg <- cbind(matrix(Score.reduce.alpha[, par.interest.index.alpha], ncol = n.par.interest.alpha), matrix(Score.reduce.alpha[, -par.interest.index.alpha], ncol = n.alpha - n.par.interest.alpha))
+  Hess.reduce.reorg <- rbind(
+    cbind(matrix(Hess.reduce.alpha[par.interest.index.alpha, par.interest.index.alpha], nrow = n.par.interest.alpha), matrix(Hess.reduce.alpha[par.interest.index.alpha, -par.interest.index.alpha], nrow = n.par.interest.alpha)),
+    cbind(matrix(Hess.reduce.alpha[-par.interest.index.alpha, par.interest.index.alpha], nrow = n.alpha - n.par.interest.alpha), matrix(Hess.reduce.alpha[-par.interest.index.alpha, -par.interest.index.alpha], nrow = n.alpha - n.par.interest.alpha))
+  )
+
+
+  A <- colSums(Score.reduce.reorg)[1:n.par.interest.alpha]
+
+  B1 <- cbind(diag(n.par.interest.alpha), -Hess.reduce.reorg[(1:n.par.interest.alpha), ((n.par.interest.alpha + 1):n.alpha)] %*% ginv(Hess.reduce.reorg[((n.par.interest.alpha + 1):n.alpha), ((n.par.interest.alpha + 1):n.alpha)]))
+
+  B2 <- matrix(0, n.alpha, n.alpha)
+  for (i in 1:n) {
+    B2 <- B2 + Score.reduce.reorg[i, ] %o% Score.reduce.reorg[i, ]
+  }
+
+  B <- B1 %*% B2 %*% t(B1)
+  score.stat.alpha <- A %*% ginv(B) %*% A
+  score.pvalue.alpha <- 1 - pchisq(score.stat.alpha, n.par.interest.alpha)
+
+
+  return(list(score.df.alpha = n.par.interest.alpha, score.stat.alpha = score.stat.alpha, score.alpha = A, est.cov.zero = B, score.pvalue.alpha = score.pvalue.alpha, vA.list = vA.list, Vinv.list = Vinv.list, VY.list = VY.list))
+}
+
+.Score.test.stat.zero.meta.4Gresampling <- function(Z.perm.list, Z.par.index, n.par.interest.alpha, col.zero.index.list, vA.list.meta, Vinv.list.meta, VY.list.meta, Method = "MV", W.zero = NULL) {
+  W <- W.zero
+  iter.num <- length(Z.perm.list)
+  score.stat.alpha <- NULL
+  score.alpha <- NULL
+  score.pvalue.alpha <- NULL
+  est.cov.zero <- NULL
+
+  for (j in 1:iter.num) {
+    vA.list <- vA.list.meta[[j]]
+    VY.list <- VY.list.meta[[j]]
+    Vinv.list <- Vinv.list.meta[[j]]
+    Z.perm <- Z.perm.list[[j]]
+    p <- ncol(Z.perm.list[[j]])
+    m.alpha <- length(vA.list[[1]])
+    n.alpha <- m.alpha * p
+    par.index.alpha <- kronecker(((0:(m.alpha - 1)) * p), rep(1, length(Z.par.index))) + Z.par.index
+    n.par.alpha <- length(par.index.alpha)
+    n <- nrow(Z.perm)
+    Score.reduce.alpha.perm <- matrix(0, n, n.alpha)
+    Hess.reduce.alpha.perm <- matrix(0, n.alpha, n.alpha)
+    for (i in 1:n) {
+      ###################################################
+      #                                                 #
+      #         alpha part: resampling Score test        #
+      #                                                 #
+      ###################################################
+      tD.tmp <- kronecker(.diag2(vA.list[[i]]), as.matrix(Z.perm[i, ], ncol = 1))
+
+      Score.reduce.alpha.perm[i, ] <- Score.reduce.alpha.perm[i, ] + tD.tmp %*% VY.list[[i]]
+
+      Hess.reduce.alpha.perm <- Hess.reduce.alpha.perm + tD.tmp %*% Vinv.list[[i]] %*% t(tD.tmp)
+    }
+
+    # re-organized the score statistics and Hessian matrix
+    Score.reduce.reorg <- cbind(matrix(Score.reduce.alpha.perm[, par.index.alpha], ncol = n.par.alpha), matrix(Score.reduce.alpha.perm[, -par.index.alpha], ncol = n.alpha - n.par.alpha))
+    Hess.reduce.reorg <- rbind(
+      cbind(matrix(Hess.reduce.alpha.perm[par.index.alpha, par.index.alpha], nrow = n.par.alpha), matrix(Hess.reduce.alpha.perm[par.index.alpha, -par.index.alpha], nrow = n.par.alpha)),
+      cbind(matrix(Hess.reduce.alpha.perm[-par.index.alpha, par.index.alpha], nrow = n.alpha - n.par.alpha), matrix(Hess.reduce.alpha.perm[-par.index.alpha, -par.index.alpha], nrow = n.alpha - n.par.alpha))
+    )
+
+
+    A <- colSums(Score.reduce.reorg)[1:n.par.alpha]
+
+    B1 <- cbind(diag(n.par.alpha), -Hess.reduce.reorg[(1:n.par.alpha), ((n.par.alpha + 1):n.alpha)] %*% ginv(Hess.reduce.reorg[((n.par.alpha + 1):n.alpha), ((n.par.alpha + 1):n.alpha)]))
+
+    B2 <- matrix(0, n.alpha, n.alpha)
+    for (i in 1:n) {
+      B2 <- B2 + Score.reduce.reorg[i, ] %o% Score.reduce.reorg[i, ]
+    }
+
+    B <- B1 %*% B2 %*% t(B1)
+    score.stat.alpha.perm <- A %*% ginv(B) %*% A
+    score.stat.alpha <- append(score.stat.alpha, score.stat.alpha.perm)
+    score.alpha[[j]] <- A
+    est.cov.zero[[j]] <- B
+    score.pvalue.alpha <- append(score.pvalue.alpha, (1 - pchisq(score.stat.alpha.perm, n.par.interest.alpha)))
+  }
+  score.alpha.meta <- rep(0, n.par.interest.alpha) ## A
+  est.cov.meta <- matrix(0, nrow = n.par.interest.alpha, ncol = n.par.interest.alpha) ## B
+  for (i in 1:iter.num)
+  {
+    idx <- col.zero.index.list[[i]]
+    score.alpha.meta[idx] <- score.alpha.meta[idx] + score.alpha[[i]] # FE-Burden
+    est.cov.meta[idx, idx] <- est.cov.meta[idx, idx] + est.cov.zero[[i]] # FE-SKAT
+  }
+  save.index.zero <- which(abs(score.alpha.meta) >= 1e-7)
+  n.par.save.alpha <- length(save.index.zero)
+  score.alpha.meta <- score.alpha.meta[save.index.zero]
+  est.cov.meta <- est.cov.meta[save.index.zero, save.index.zero]
+  est.cov.inv <- ginv(est.cov.meta)
+  if (Method == "MV") {
+    score.stat.alpha.perm <- score.alpha.meta %*% est.cov.inv %*% score.alpha.meta # FE-Burden
+  }
+  if (Method == "SKAT") {
+    if (is.null(W)) {
+      W <- diag(1, nrow = n.par.save.alpha)
+    } else {
+      W <- W[save.index.zero, save.index.zero]
+    }
+    score.stat.alpha.perm <- score.alpha.meta %*% W %*% score.alpha.meta
+  }
+  if (Method == "FE-VC") {
+    weight.cov.inv <- eigen(est.cov.inv)$values # eign.val/sum(eign.val)
+    score.stat.alpha.perm <- score.alpha.meta %*% est.cov.inv %*% est.cov.inv %*% score.alpha.meta # SKAT-VC
+  }
+  if (Method == "Fisher") {
+    score.stat.alpha.perm <- -2 * sum(log(score.pvalue.alpha))
+  }
+
+  return(as.numeric(score.stat.alpha.perm))
+}
+
+.Score.test.stat.pos.meta.4Gresampling <- function(X.perm.list, X.par.index.list, n.par.interest.beta, col.pos.index.list, S.beta.list.meta, I.beta.list.meta, Method = "MV", W.pos = NULL) {
+  iter.num <- length(X.perm.list)
+  score.stat.beta <- NULL
+  score.beta <- NULL
+  est.cov <- NULL
+  score.pvalue.beta <- NULL
+  W <- W.pos
+  for (j in c(1:iter.num)) {
+    S.beta.list <- S.beta.list.meta[[j]]
+    I.beta.list <- I.beta.list.meta[[j]]
+    X.perm <- X.perm.list[[j]]
+    p <- ncol(X.perm)
+    n <- nrow(X.perm)
+    m.beta <- length(S.beta.list[[1]])
+    # n.par.interest.beta = m.beta
+    n.beta <- m.beta * p
+    # n.beta = m.beta*2
+    par.index.beta <- kronecker(((0:(m.beta - 1)) * p), rep(1, length(X.par.index.list[[j]]))) + X.par.index.list[[j]]
+    # par.interest.index.beta = (1:m.beta )*2
+    n.par.beta <- length(par.index.beta)
+    Score.reduce.beta.perm <- matrix(0, n, n.beta)
+    Hess.reduce.beta.perm <- matrix(0, n.beta, n.beta)
+    for (i in 1:n) {
+      ###################################################
+      #                                                 #
+      #         Beta part: resampling Score test        #
+      #                                                 #
+      ###################################################
+      Score.reduce.beta.perm[i, ] <- Score.reduce.beta.perm[i, ] + kronecker(matrix(S.beta.list[[i]], ncol = 1), matrix(X.perm[i, ], ncol = 1))
+
+      Hess.reduce.beta.perm <- Hess.reduce.beta.perm + kronecker(I.beta.list[[i]], (X.perm[i, ] %o% X.perm[i, ]))
+      #     if(sum(is.na(Hess.reduce.beta.perm))>0){
+      #       print(i); break;
+      #
+      #     }
+    }
+    ###################################################
+    #                                                 #
+    #         Beta part: resampling Score test        #
+    #                                                 #
+    ###################################################
+    # re-organized the score statistics and Hessian matrix
+    Score.reduce.beta.perm.reorg <- cbind(matrix(Score.reduce.beta.perm[, par.index.beta], ncol = n.par.beta), matrix(Score.reduce.beta.perm[, -par.index.beta], ncol = n.beta - n.par.beta))
+    Hess.reduce.beta.perm.reorg <- rbind(
+      cbind(matrix(Hess.reduce.beta.perm[par.index.beta, par.index.beta], nrow = n.par.beta), matrix(Hess.reduce.beta.perm[par.index.beta, -par.index.beta], nrow = n.par.beta)),
+      cbind(matrix(Hess.reduce.beta.perm[-par.index.beta, par.index.beta], nrow = n.beta - n.par.beta), matrix(Hess.reduce.beta.perm[-par.index.beta, -par.index.beta], nrow = n.beta - n.par.beta))
+    )
+
+
+    A <- colSums(Score.reduce.beta.perm.reorg)[1:n.par.beta]
+
+    B1 <- cbind(diag(n.par.beta), -Hess.reduce.beta.perm.reorg[(1:n.par.beta), ((n.par.beta + 1):n.beta)] %*% ginv(Hess.reduce.beta.perm.reorg[((n.par.beta + 1):n.beta), ((n.par.beta + 1):n.beta)]))
+
+    B2 <- matrix(0, n.beta, n.beta)
+
+    # change in 04/08/2016
+    for (i in 1:n) {
+      B2 <- B2 + Score.reduce.beta.perm.reorg[i, ] %o% Score.reduce.beta.perm.reorg[i, ]
+    }
+
+    B <- B1 %*% B2 %*% t(B1)
+    score.stat.beta.perm <- A %*% ginv(B) %*% A
+    score.stat.beta <- append(score.stat.beta, score.stat.beta.perm)
+    score.beta[[j]] <- A
+    est.cov[[j]] <- B
+
+    score.pvalue.beta <- append(score.pvalue.beta, (1 - pchisq(score.stat.beta.perm, n.par.beta)))
+  }
+  score.beta.meta <- rep(0, n.par.interest.beta) ## A
+  est.cov.meta <- matrix(0, nrow = n.par.interest.beta, ncol = n.par.interest.beta) ## B
+  for (i in 1:iter.num)
+  {
+    idx <- col.pos.index.list[[i]]
+    score.beta.meta[idx] <- score.beta.meta[idx] + score.beta[[i]] # FE-Burden
+    est.cov.meta[idx, idx] <- est.cov.meta[idx, idx] + est.cov[[i]] # FE-SKAT
+  }
+  save.index.pos <- which(abs(score.beta.meta) >= 1e-7)
+  n.par.save.beta <- length(save.index.pos)
+  score.beta.meta <- score.beta.meta[save.index.pos]
+  est.cov.meta <- est.cov.meta[save.index.pos, save.index.pos]
+  est.cov.inv <- ginv(est.cov.meta)
+  if (Method == "MV") {
+    score.stat.beta.perm <- score.beta.meta %*% est.cov.inv %*% score.beta.meta # FE-Burden
+  }
+  if (Method == "SKAT") {
+    if (is.null(W)) {
+      W <- diag(1, nrow = n.par.save.beta)
+    } else {
+      W <- W[save.index.pos, save.index.pos]
+    }
+    # fesk.p = farebrother(score.stat.fesk,weight, h = rep(1,m-1), delta = rep(0,m-1), maxit = 100000,eps = 10^(-10), mode = 1)$Qq
+    score.stat.beta.perm <- score.beta.meta %*% W %*% score.beta.meta
+  }
+  if (Method == "FE-VC") {
+    weight.cov.inv <- eigen(est.cov.inv)$values # eign.val/sum(eign.val)
+    score.stat.beta.perm <- score.beta.meta %*% est.cov.inv %*% est.cov.inv %*% score.beta.meta # SKAT-VC
+  }
+  if (Method == "Fisher") {
+    score.stat.beta.perm <- -2 * sum(log(score.pvalue.beta))
+  }
+
+  return(as.numeric(score.stat.beta.perm))
+}
+
+.resample.work.zero.meta <- function(Z.list, Z.par.index, n.par.interest.alpha, col.zero.index.list, score.stat.zero.meta, zero.vA.list.meta, zero.Vinv.list.meta, zero.VY.list.meta, start.nperm, end.nperm, n.zero, zero.acc, Method = "MV", W.zero = NULL) {
+  iter.num <- length(Z.list)
+  n.zero.new <- n.zero
+  zero.acc.new <- zero.acc
+
+  for (k in start.nperm:end.nperm) {
+    perm.index <- lapply(Z.list, function(i) sample(1:nrow(i)))
+
+    Z.perm.list <- Z.list
+    for (i in 1:iter.num) {
+      Z.perm.list[[i]][, Z.par.index] <- Z.perm.list[[i]][perm.index[[i]], Z.par.index]
+    }
+
+    score.stat.zero.meta.perm <- try(.Score.test.stat.zero.meta.4Gresampling(Z.perm.list, Z.par.index, n.par.interest.alpha, col.zero.index.list, zero.vA.list.meta, zero.Vinv.list.meta, zero.VY.list.meta, Method = Method, W.zero = W.zero))
+
+
+
+    if (class(score.stat.zero.meta.perm) != "try-error") {
+      n.zero.new <- n.zero.new + 1
+      if (score.stat.zero.meta.perm >= score.stat.zero.meta) {
+        zero.acc.new <- zero.acc.new + 1
+      }
+    }
+  }
+
+  if (zero.acc.new < 1) {
+    next.end.nperm <- (end.nperm + 1) * 100 - 1
+    flag <- 1
+  } else if (zero.acc.new < 10) {
+    next.end.nperm <- (end.nperm + 1) * 10 - 1
+    flag <- 1
+  }
+  #   else if(one.acc.new<20){
+  #     next.end.nperm = ( end.nperm + 1) * 5 - 1;
+  #     flag = 1;
+  #
+  #   }
+  else {
+    next.end.nperm <- (end.nperm + 1) - 1
+    flag <- 0
+  }
+
+  return(list(
+    n.zero.new = n.zero.new, zero.acc.new = zero.acc.new,
+    flag = flag, next.end.nperm = next.end.nperm
+  ))
+}
+
+.resample.work.pos.meta <- function(X.list, X.par.index, X1.par.index.list, n.par.index.beta, par.index.pos.list, score.stat.pos.meta, index.subj.pos.list, index.cova.list, score.stat.pos, pos.S.beta.list, pos.I.beta.list, start.nperm, end.nperm, n.pos, pos.acc, Method = "MV", W.pos = NULL) {
+  n <- nrow(X)
+  n.pos.new <- n.pos
+  pos.acc.new <- pos.acc
+  iter.num <- length(X.list)
+
+  for (k in start.nperm:end.nperm) {
+    perm.index <- lapply(X.list, function(i) sample(1:nrow(i)))
+    X.perm.list <- X.list
+    for (i in 1:iter.num) {
+      X.perm.list[[i]][, X.par.index] <- X.perm.list[[i]][perm.index[[i]], X.par.index]
+    }
+    # X1.perm = X.perm[index.subj.pos, , drop=FALSE]
+    # X1.perm = X1.perm[,c(1, index.cova), drop=FALSE]
+    X1.perm.list <- lapply(1:iter.num, function(i) X.perm.list[[i]][index.subj.pos.list[[i]], , drop = FALSE])
+    X1.perm.list <- lapply(1:iter.num, function(i) X1.perm.list[[i]][, c(1, index.cova.list[[i]]), drop = FALSE])
+
+    score.stat.pos.meta.perm <- try(.Score.test.stat.pos.meta.4Gresampling(X1.perm.list, X1.par.index.list, n.par.interest.beta, par.index.pos.list, pos.S.beta.list, pos.I.beta.list, Method = "MV", W.pos = W.pos))
+
+
+    if (class(score.stat.pos.meta.perm) != "try-error") {
+      n.pos.new <- n.pos.new + 1
+      if (score.stat.pos.meta.perm >= score.stat.pos.meta) {
+        pos.acc.new <- pos.acc.new + 1
+      }
+    }
+  }
+
+  if (pos.acc.new < 1) {
+    next.end.nperm <- (end.nperm + 1) * 100 - 1
+    flag <- 1
+  } else if (pos.acc.new < 10) {
+    next.end.nperm <- (end.nperm + 1) * 10 - 1
+    flag <- 1
+  }
+  #   else if(one.acc.new<20){
+  #     next.end.nperm = ( end.nperm + 1) * 5 - 1;
+  #     flag = 1;
+  #
+  #   }
+  else {
+    next.end.nperm <- (end.nperm + 1) - 1
+    flag <- 0
+  }
+
+  return(list(
+    n.pos.new = n.pos.new, pos.acc.new = pos.acc.new,
+    flag = flag, next.end.nperm = next.end.nperm
+  ))
+}
+
+.resample.work.two.meta <- function(X.list, X.par.index, Z.list, Z.par.index, n.par.interest.beta, n.par.interest.alpha, col.pos.index.list, col.zero.index.list, index.subj.pos.list, index.cova.list, score.stat.pos.meta, score.stat.zero.meta, pos.S.beta.list, pos.I.beta.list, zero.vA.list.meta, zero.Vinv.list.meta, zero.VY.list.meta, Method = "MV", weight.cov.pos = NULL, weight.cov.zero = NULL, W.pos = NULL, W.zero = NULL, start.nperm, end.nperm, n.pos, pos.acc, n.zero, zero.acc, n.comb, comb.acc) {
+  iter.num <- length(X.list)
+  # n.par.interest.beta, par.index.pos.list,
+  n <- nrow(X)
+
+  n.pos.new <- n.pos
+  pos.acc.new <- pos.acc
+
+  n.zero.new <- n.zero
+  zero.acc.new <- zero.acc
+
+  n.comb.new <- n.comb
+  comb.acc.new <- comb.acc
+
+  if (Method == "MV") {
+    score.stat.comb.meta <- score.stat.pos.meta + score.stat.zero.meta
+  }
+
+  if (Method %in% c("SKAT", "FE-VC")) {
+    score.pos.pvalue <- davies(score.stat.pos.meta, weight.cov.pos, h = rep(1, length(weight.cov.pos)), delta = rep(0, length(weight.cov.pos)), sigma = 0, lim = 10000, acc = 0.0001)$Qq
+    score.pos.pvalue <- ifelse(score.pos.pvalue > 0, score.pos.pvalue, 1e-7)
+    score.zero.pvalue <- davies(score.stat.zero.meta, weight.cov.zero, h = rep(1, length(weight.cov.zero)), delta = rep(0, length(weight.cov.zero)), sigma = 0, lim = 10000, acc = 0.0001)$Qq
+    score.zero.pvalue <- ifelse(score.zero.pvalue > 0, score.zero.pvalue, 1e-7)
+    score.stat.comb.meta <- -2 * (log(score.pos.pvalue) + log(score.zero.pvalue))
+  }
+  if (Method == "Fisher") {
+    score.stat.comb.meta <- -2 * (log(score.stat.pos.meta) + log(score.stat.zero.meta))
+  }
+
+  for (k in start.nperm:end.nperm) {
+    perm.index <- lapply(X.list, function(i) sample(1:nrow(i)))
+    X.perm.list <- X.list
+    Z.perm.list <- Z.list
+    X1.perm.list <- list()
+    X1.par.index.list <- list()
+    for (i in 1:iter.num) {
+      X.perm.list[[i]][, X.par.index] <- X.perm.list[[i]][perm.index[[i]], X.par.index]
+      Z.perm.list[[i]][, Z.par.index] <- Z.perm.list[[i]][perm.index[[i]], Z.par.index]
+      index.cova <- index.cova.list[[i]]
+      X1.par.index.ava <- as.numeric(!is.na(match(X.par.index, index.cova))) # use 0/1 to indicate the index is still availiable or not
+      if (length(index.cova) < 1 | (sum(X1.par.index.ava) != length(X.par.index))) {
+        next
+      }
+      X1.perm.list[[i]] <- X.perm.list[[i]][, c(1, index.cova), drop = FALSE]
+      X1.par.index <- match(X.par.index, index.cova) + 1
+      X1.par.index.list[[i]] <- X1.par.index
+    }
+    # X.perm = X
+    # X.perm[,X.par.index] = X.perm[perm.index,X.par.index]
+    # X1.perm = X.perm[-nY.index , , drop=FALSE]
+    # X1.perm = X1.perm[,c(1, index.cova), drop=FALSE]
+    #
+    # Z.perm = Z
+    # Z.perm[,Z.par.index] = Z.perm[perm.index,Z.par.index]
+
+
+    score.stat.pos.meta.perm <- try(.Score.test.stat.pos.meta.4Gresampling(X1.perm.list, X1.par.index.list, n.par.interest.beta, col.pos.index.list, pos.S.beta.list, pos.I.beta.list, Method = Method, W.pos = W.pos))
+    score.stat.zero.meta.perm <- try(.Score.test.stat.zero.meta.4Gresampling(Z.perm.list, Z.par.index, n.par.interest.alpha, col.zero.index.list, zero.vA.list.meta, zero.Vinv.list.meta, zero.VY.list.meta, Method = Method, W.zero = W.zero))
+
+
+    if (class(score.stat.pos.meta.perm) != "try-error") {
+      n.pos.new <- n.pos.new + 1
+      if (score.stat.pos.meta.perm >= score.stat.pos.meta) {
+        pos.acc.new <- pos.acc.new + 1
+      }
+    }
+
+    if (class(score.stat.zero.meta.perm) != "try-error") {
+      n.zero.new <- n.zero.new + 1
+      if (score.stat.zero.meta.perm >= score.stat.zero.meta) {
+        zero.acc.new <- zero.acc.new + 1
+      }
+    }
+
+    if (class(score.stat.pos.meta.perm) != "try-error" & class(score.stat.zero.meta.perm) != "try-error") {
+      if (Method == "MV") {
+        score.stat.comb.meta.perm <- score.stat.pos.meta.perm + score.stat.zero.meta.perm
+      }
+
+      if (Method %in% c("SKAT", "FE-VC")) {
+        score.pos.perm.pvalue <- davies(score.stat.pos.meta.perm, weight.cov.pos, h = rep(1, length(weight.cov.pos)), delta = rep(0, length(weight.cov.pos)), sigma = 0, lim = 10000, acc = 0.0001)$Qq
+        score.pos.perm.pvalue <- ifelse(score.pos.perm.pvalue > 0, score.pos.perm.pvalue, 1e-7)
+        score.zero.perm.pvalue <- davies(score.stat.zero.meta.perm, weight.cov.zero, h = rep(1, length(weight.cov.zero)), delta = rep(0, length(weight.cov.zero)), sigma = 0, lim = 10000, acc = 0.0001)$Qq
+        score.zero.perm.pvalue <- ifelse(score.zero.perm.pvalue > 0, score.zero.perm.pvalue, 1e-7)
+        score.stat.comb.meta.perm <- -2 * (log(score.pos.perm.pvalue) + log(score.zero.perm.pvalue))
+      }
+      if (Method == "Fisher") {
+        score.stat.comb.meta.perm <- -2 * (log(score.stat.pos.meta.perm) + log(score.stat.zero.meta.perm))
+      }
+      n.comb.new <- n.comb.new + 1
+      if (score.stat.comb.meta.perm >= score.stat.comb.meta) {
+        comb.acc.new <- comb.acc.new + 1
+      }
+    }
+  }
+
+  if (comb.acc.new < 1) {
+    next.end.nperm <- (end.nperm + 1) * 100 - 1
+    flag <- 1
+  } else if (comb.acc.new < 10) {
+    next.end.nperm <- (end.nperm + 1) * 10 - 1
+    flag <- 1
+  }
+  #   else if(one.acc.new<20){
+  #     next.end.nperm = ( end.nperm + 1) * 5 - 1;
+  #     flag = 1;
+  #
+  #   }
+  else {
+    next.end.nperm <- (end.nperm + 1) - 1
+    flag <- 0
+  }
+
+  return(list(
+    n.pos.new = n.pos.new, pos.acc.new = pos.acc.new,
+    n.zero.new = n.zero.new, zero.acc.new = zero.acc.new,
+    n.comb.new = n.comb.new, comb.acc.new = comb.acc.new,
+    flag = flag, next.end.nperm = next.end.nperm
+  ))
+}
