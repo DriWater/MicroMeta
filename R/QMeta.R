@@ -25,7 +25,7 @@
   }
 
 
-  Ei.out[m] <- 1 # set the m-th taxa as references
+  Ei.out[m] <- 1 # set the m-th taxa as reference
 
 
 
@@ -93,7 +93,7 @@
 }
 
 .fun.score.i.beta <- function(beta, data) {
-  # return a vector of score statistics each element corresponding to one subject.
+  # return a vector of score statistics with each element corresponding to one subject.
   Y <- data$Y
   X <- data$X
 
@@ -218,7 +218,7 @@
       cbind(matrix(Hess.reduce.beta[-par.interest.index.beta, par.interest.index.beta], nrow = n.beta - n.par.interest.beta), matrix(Hess.reduce.beta[-par.interest.index.beta, -par.interest.index.beta], nrow = n.beta - n.par.interest.beta))
     )
 
-    # re-arrange the test statistics
+    # re-organize the test statistics
     A <- colSums(Score.reduce.reorg)[1:n.par.interest.beta]
 
     B1 <- cbind(diag(n.par.interest.beta), -Hess.reduce.reorg[(1:n.par.interest.beta), ((n.par.interest.beta + 1):n.beta)] %*% ginv(Hess.reduce.reorg[((n.par.interest.beta + 1):n.beta), ((n.par.interest.beta + 1):n.beta)]))
@@ -238,7 +238,7 @@
 }
 
 .Score.test.stat.meta.4Gresampling <- function(X.perm.list, X.par.index, n.par.interest.beta, col.index.list, S.beta.list.meta, I.beta.list.meta, Method = "MV", W = NULL) {
-  stu.num <- length(X.perm.list) # determine the total number of studies
+  stu.num <- length(X.perm.list) #  the total number of studies for meta analysis
 
   # initialize those statistics
   score.stat.beta <- NULL
@@ -247,6 +247,7 @@
   score.pvalue.beta <- NULL
 
   for (j in c(1:stu.num)) {
+    # resampling in each group
     S.beta.list <- S.beta.list.meta[[j]]
     I.beta.list <- I.beta.list.meta[[j]]
     X.perm <- X.perm.list[[j]]
@@ -605,12 +606,13 @@ QCAT_Meta <- function(OTU, X, X.index, Tax = NULL, Method = "MV", Weight = NULL,
 
     if (nrow(OTU[[i]]) != nrow(X[[i]])) {
       stop(paste0(
-        "Samples in the OTU table and the covariate table of study ", i,
+        "Taxas in the OTU table and the covariate table of study ", i,
         " should be the same"
       ))
     }
     remove.subject <- which(rowSums(OTU[[i]]) < min.depth)
     if (length(remove.subject) > 0) {
+      # remove those sample with read depth is small
       print(paste("Remove", length(remove.subject), "samples with read depth less than", min.depth, "in OTU table", i))
       X[[i]] <- X[[i]][-remove.subject, , drop = FALSE]
       OTU[[i]] <- OTU[[i]][-remove.subject, , drop = FALSE]
@@ -707,7 +709,7 @@ QCAT_Meta <- function(OTU, X, X.index, Tax = NULL, Method = "MV", Weight = NULL,
             next
             # print("==skip:1==");
           } else {
-            # extrac the subtree for later test
+            # extract the subtree for later use
             subtree <- c(subtree, level.uni[j])
             # print(level.uni[j])
             if (is.null(n.resample)) { # asymptotic test only
