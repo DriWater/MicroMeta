@@ -4,6 +4,28 @@
 #       zero Part Model(GEE)           #
 #                                      #
 ########################################
+.F.test <- function(x){
+
+  x.stat = -2 * sum(log(x))
+  return( 1 - pchisq(x.stat, df = 2 * length(x)) )
+}
+
+.simes.test <- function(x){
+
+  return( min(length(x) * x/rank(x)) )
+
+}
+
+.diag2 <- function(x){
+
+  if(length(x)>1){
+    return(diag(x))
+  }else{
+    return(as.matrix(x))
+
+  }
+
+}
 
 .Pi.alpha <- function(m, p, alpha, X.i) {
   Pi.out <- rep(NA, m)
@@ -67,7 +89,6 @@
     return(Score.alpha.i)
   }
 }
-
 
 .Score.test.stat.zero <- function(Y0, Z, Z.par.index, cor.stru) {
   Z.reduce <- Z[, -Z.par.index, drop = FALSE] # split the matrix according to the index of parameter of interest
@@ -151,98 +172,165 @@
   return(list(score.df.alpha = n.par.interest.alpha, score.stat.alpha = score.stat.alpha, score.alpha = A, est.cov.zero = B, score.pvalue.alpha = score.pvalue.alpha, vA.list = vA.list, Vinv.list = Vinv.list, VY.list = VY.list))
 }
 
-.Score.test.stat.zero.meta.4Gresampling <- function(Z.perm.list, Z.par.index, n.par.interest.alpha, col.zero.index.list, vA.list.meta, Vinv.list.meta, VY.list.meta, Method = "MV", W.zero = NULL) {
-  # calculate the score statistics based on the shuffled sample
-  W <- W.zero
-  iter.num <- length(Z.perm.list) # determine the total study number
-  # initialize the test statistics
-  score.stat.alpha <- NULL
-  score.alpha <- NULL
-  score.pvalue.alpha <- NULL
-  est.cov.zero <- NULL
+.Score.test.stat.zero.meta.4Gresampling <- function(Z.perm.list, Z.par.index, n.par.interest.alpha, col.zero.index.list, vA.list.meta, Vinv.list.meta, VY.list.meta, Method = "MV", W.zero = NULL){
 
-  for (j in 1:iter.num) {
-    vA.list <- vA.list.meta[[j]]
-    VY.list <- VY.list.meta[[j]]
-    Vinv.list <- Vinv.list.meta[[j]]
-    Z.perm <- Z.perm.list[[j]]
-    p <- ncol(Z.perm.list[[j]])
-    m.alpha <- length(vA.list[[1]])
-    n.alpha <- m.alpha * p
-    par.index.alpha <- kronecker(((0:(m.alpha - 1)) * p), rep(1, length(Z.par.index))) + Z.par.index
-    n.par.alpha <- length(par.index.alpha)
-    n <- nrow(Z.perm)
-    Score.reduce.alpha.perm <- matrix(0, n, n.alpha)
-    Hess.reduce.alpha.perm <- matrix(0, n.alpha, n.alpha)
-    for (i in 1:n) {
+  W = W.zero
+  iter.num = length(Z.perm.list)
+  score.stat.alpha = NULL
+  score.alpha = NULL
+  score.pvalue.alpha = NULL
+  est.cov.zero = NULL
+
+  for ( j in 1:iter.num){
+
+    vA.list = vA.list.meta[[j]]
+    VY.list = VY.list.meta[[j]]
+    Vinv.list = Vinv.list.meta[[j]]
+    Z.perm = Z.perm.list[[j]]
+    p = ncol(Z.perm.list[[j]])
+    m.alpha = length(vA.list[[1]])
+    n.alpha = m.alpha*p
+    par.index.alpha =  kronecker( ((0:(m.alpha-1))*p), rep(1,length(Z.par.index))) + Z.par.index
+    n.par.alpha = length(par.index.alpha)
+    n = nrow(Z.perm)
+    Score.reduce.alpha.perm = matrix(0, n, n.alpha )
+    Hess.reduce.alpha.perm = matrix(0, n.alpha, n.alpha )
+    for(i in 1:n){
+
       ###################################################
       #                                                 #
       #         alpha part: resampling Score test        #
       #                                                 #
       ###################################################
-      tD.tmp <- kronecker(.diag2(vA.list[[i]]), as.matrix(Z.perm[i, ], ncol = 1))
+      tD.tmp = kronecker(.diag2(vA.list[[i]]), as.matrix(Z.perm[i,], ncol=1))
 
-      Score.reduce.alpha.perm[i, ] <- Score.reduce.alpha.perm[i, ] + tD.tmp %*% VY.list[[i]]
+      Score.reduce.alpha.perm[i,] = Score.reduce.alpha.perm[i,] + tD.tmp %*% VY.list[[i]]
 
-      Hess.reduce.alpha.perm <- Hess.reduce.alpha.perm + tD.tmp %*% Vinv.list[[i]] %*% t(tD.tmp)
+      Hess.reduce.alpha.perm = Hess.reduce.alpha.perm + tD.tmp %*% Vinv.list[[i]] %*% t(tD.tmp)
+
+
     }
 
     # re-organized the score statistics and Hessian matrix
-    Score.reduce.reorg <- cbind(matrix(Score.reduce.alpha.perm[, par.index.alpha], ncol = n.par.alpha), matrix(Score.reduce.alpha.perm[, -par.index.alpha], ncol = n.alpha - n.par.alpha))
-    Hess.reduce.reorg <- rbind(
-      cbind(matrix(Hess.reduce.alpha.perm[par.index.alpha, par.index.alpha], nrow = n.par.alpha), matrix(Hess.reduce.alpha.perm[par.index.alpha, -par.index.alpha], nrow = n.par.alpha)),
-      cbind(matrix(Hess.reduce.alpha.perm[-par.index.alpha, par.index.alpha], nrow = n.alpha - n.par.alpha), matrix(Hess.reduce.alpha.perm[-par.index.alpha, -par.index.alpha], nrow = n.alpha - n.par.alpha))
-    )
+    Score.reduce.reorg = cbind( matrix(Score.reduce.alpha.perm[,par.index.alpha], ncol=n.par.alpha), matrix(Score.reduce.alpha.perm[,-par.index.alpha], ncol=n.alpha - n.par.alpha) )
+    Hess.reduce.reorg = rbind(cbind( matrix(Hess.reduce.alpha.perm[par.index.alpha, par.index.alpha], nrow=n.par.alpha), matrix(Hess.reduce.alpha.perm[par.index.alpha, -par.index.alpha], nrow=n.par.alpha) ),
+                              cbind( matrix(Hess.reduce.alpha.perm[-par.index.alpha, par.index.alpha], nrow=n.alpha - n.par.alpha), matrix(Hess.reduce.alpha.perm[-par.index.alpha, -par.index.alpha], nrow= n.alpha - n.par.alpha)))
 
-    # reorganized the Score statistics and estimated covariance matrix
-    A <- colSums(Score.reduce.reorg)[1:n.par.alpha]
 
-    B1 <- cbind(diag(n.par.alpha), -Hess.reduce.reorg[(1:n.par.alpha), ((n.par.alpha + 1):n.alpha)] %*% ginv(Hess.reduce.reorg[((n.par.alpha + 1):n.alpha), ((n.par.alpha + 1):n.alpha)]))
+    A = colSums(Score.reduce.reorg)[1:n.par.alpha]
 
-    B2 <- matrix(0, n.alpha, n.alpha)
-    for (i in 1:n) {
-      B2 <- B2 + Score.reduce.reorg[i, ] %o% Score.reduce.reorg[i, ]
+    B1 = cbind(diag(n.par.alpha), -Hess.reduce.reorg[(1:n.par.alpha), ((n.par.alpha+1):n.alpha)] %*% ginv(Hess.reduce.reorg[((n.par.alpha+1):n.alpha), ((n.par.alpha+1):n.alpha)]) )
+
+    B2 =  matrix(0, n.alpha, n.alpha)
+    for(i in 1:n){
+      B2 = B2 + Score.reduce.reorg[i,] %o% Score.reduce.reorg[i,]
     }
 
-    B <- B1 %*% B2 %*% t(B1)
-    score.stat.alpha.perm <- A %*% ginv(B) %*% A
-    score.stat.alpha <- append(score.stat.alpha, score.stat.alpha.perm)
-    score.alpha[[j]] <- A
-    est.cov.zero[[j]] <- B
-    score.pvalue.alpha <- append(score.pvalue.alpha, (1 - pchisq(score.stat.alpha.perm, n.par.interest.alpha)))
+    B = B1 %*% B2 %*% t(B1)
+    score.stat.alpha.perm = A %*% ginv(B) %*% A
+    score.stat.alpha = append(score.stat.alpha, score.stat.alpha.perm)
+    score.alpha[[j]] = A
+    est.cov.zero[[j]] = B
+    score.pvalue.alpha = append(score.pvalue.alpha, (1 - pchisq(score.stat.alpha.perm, n.par.interest.alpha)))
+
   }
-  score.alpha.meta <- rep(0, n.par.interest.alpha) ## initialize the score statistics with zeros
-  est.cov.meta <- matrix(0, nrow = n.par.interest.alpha, ncol = n.par.interest.alpha) ## B
-  for (i in 1:iter.num)
+  score.alpha.meta  = rep(0,n.par.interest.alpha) ## A
+  est.cov.meta = matrix(0, nrow = n.par.interest.alpha, ncol = n.par.interest.alpha) ## B
+  for(i in 1:iter.num)
   {
-    idx <- col.zero.index.list[[i]]
-    score.alpha.meta[idx] <- score.alpha.meta[idx] + score.alpha[[i]]
-    est.cov.meta[idx, idx] <- est.cov.meta[idx, idx] + est.cov.zero[[i]]
+    idx = col.zero.index.list[[i]]
+    score.alpha.meta[idx] =  score.alpha.meta[idx] +  score.alpha[[i]]  #FE-Burden
+    est.cov.meta[idx, idx] =  est.cov.meta[idx, idx] + est.cov.zero[[i]] #FE-SKAT
   }
-  # keep the index of those variable which score statistics is greater than 0
-  save.index.zero <- which(abs(score.alpha.meta) >= 1e-7)
-  n.par.save.alpha <- length(save.index.zero)
-  score.alpha.meta <- score.alpha.meta[save.index.zero]
-  est.cov.meta <- est.cov.meta[save.index.zero, save.index.zero]
-  est.cov.inv <- ginv(est.cov.meta)
-  if (Method == "MV") {
-    score.stat.alpha.perm <- score.alpha.meta %*% est.cov.inv %*% score.alpha.meta # Mulivariate test
+  save.index.zero = which(abs(score.alpha.meta) >= 1e-7)
+  n.par.save.alpha = length(save.index.zero)
+  score.alpha.meta =  score.alpha.meta[save.index.zero]
+  est.cov.meta =  est.cov.meta[save.index.zero,save.index.zero]
+  est.cov.inv = ginv(est.cov.meta)
+  weight.cov.zero = NULL
+  if (Method == "MV")
+  {
+    score.stat.alpha.perm = score.alpha.meta %*% est.cov.inv %*% score.alpha.meta #FE-Burden
   }
-  if (Method == "SKAT") { # fixed effect SKAT test
-    if (is.null(W)) {
-      W <- diag(1, nrow = n.par.save.alpha)
-    } else {
-      W <- W[save.index.zero, save.index.zero]
+  if (Method == "SKAT")
+  {
+    if(is.null(W))
+    {
+      W = diag(1,nrow = n.par.save.alpha)
     }
-    score.stat.alpha.perm <- score.alpha.meta %*% W %*% score.alpha.meta
+    else{
+      W = W[save.index.zero,save.index.zero]
+    }
+    eigen.cov.zero <- eigen(est.cov.meta)
+    eigen.cov.zero.sqrt = eigen.cov.zero$vectors %*% diag(sqrt(eigen.cov.zero$values),nrow = length(eigen.cov.zero$values)) %*% solve(eigen.cov.zero$vectors)
+    weight.cov.zero = eigen(eigen.cov.zero.sqrt %*% W %*% eigen.cov.zero.sqrt)$values
+    score.stat.alpha.perm = score.alpha.meta %*% W %*% score.alpha.meta
   }
-  if (Method == "FE-VC") {
-    weight.cov.inv <- eigen(est.cov.inv)$values # Fixed effect variance component test
-    score.stat.alpha.perm <- score.alpha.meta %*% est.cov.inv %*% est.cov.inv %*% score.alpha.meta # SKAT-VC
+  if (Method == "FE-VC")
+  {
+    weight.cov.zero = eigen(est.cov.inv)$values #eign.val/sum(eign.val)
+    score.stat.alpha.perm = score.alpha.meta %*% est.cov.inv %*% est.cov.inv %*% score.alpha.meta #SKAT-VC
   }
-  if (Method == "Fisher") {
-    score.stat.alpha.perm <- -2 * sum(log(score.pvalue.alpha)) # Fisher's p-value combination
+  if (Method == "Fisher")
+  {
+    score.stat.alpha.perm = -2 * sum(log(score.pvalue.alpha))
   }
 
-  return(as.numeric(score.stat.alpha.perm))
+  return(list(score.stat.alpha.perm = as.numeric(score.stat.alpha.perm),weight.cov.zero = weight.cov.zero))
+
+}
+
+.resample.work.zero.meta <- function(Z.list, Z.par.index, n.par.interest.alpha, col.zero.index.list, score.stat.zero.meta, zero.vA.list.meta, zero.Vinv.list.meta, zero.VY.list.meta, start.nperm, end.nperm, n.zero, zero.acc, Method = "MV", W.zero = NULL){
+
+  iter.num = length(Z.list)
+  n.zero.new = n.zero
+  zero.acc.new = zero.acc
+
+  for(k in start.nperm:end.nperm){
+
+    perm.index = lapply(Z.list, function(i) sample(1:nrow(i)))
+
+    Z.perm.list = Z.list
+    for (i in 1:iter.num){
+      Z.perm.list[[i]][,Z.par.index] =  Z.perm.list[[i]][perm.index[[i]],Z.par.index]
+    }
+
+    tmp = try( .Score.test.stat.zero.meta.4Gresampling(Z.perm.list, Z.par.index,n.par.interest.alpha, col.zero.index.list, zero.vA.list.meta, zero.Vinv.list.meta, zero.VY.list.meta, Method = Method, W.zero = W.zero) )
+
+
+
+    if(class(tmp) != "try-error"){
+
+      n.zero.new = n.zero.new + 1
+      if(tmp$score.stat.alpha.perm >= score.stat.zero.meta){
+        zero.acc.new = zero.acc.new + 1
+
+      }
+    }
+
+
+  }
+
+  if(zero.acc.new < 1){
+    next.end.nperm = (end.nperm + 1) * 100 - 1;
+    flag = 1;
+
+  }else if(zero.acc.new<10){
+    next.end.nperm = ( end.nperm + 1) * 10 - 1;
+    flag = 1;
+
+  }
+  #   else if(one.acc.new<20){
+  #     next.end.nperm = ( end.nperm + 1) * 5 - 1;
+  #     flag = 1;
+  #
+  #   }
+  else{
+    next.end.nperm = ( end.nperm + 1) - 1;
+    flag = 0;
+  }
+
+  return(list(n.zero.new=n.zero.new, zero.acc.new=zero.acc.new,
+              flag=flag, next.end.nperm=next.end.nperm))
+
 }
