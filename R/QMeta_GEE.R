@@ -338,7 +338,6 @@
 
 }
 
-
 .Score.test.zero.meta <- function(Y.list, Z.list, Z.par.index, seed=11, resample=FALSE, n.replicates=NULL, Method = "MV", Weight.zero=NULL){
   iter.num = length(X.list)
   W.zero = Weight.zero
