@@ -332,7 +332,32 @@
   if (Method == "Fisher") {
     score.stat.meta.perm <- -2 * sum(log(score.pvalue.beta)) # the Fisher's p-value combination
   }
-
+  if(Method == "Het-SKAT"){
+    W = diag(1,nrow = n.par.interest.beta)
+    score.stat.meta = 0
+    for( i in 1:j ){
+      score.stat.meta = score.stat.meta + crossprod(crossprod(score.beta[[i]], ginv(est.cov[[i]])), crossprod(t(W), crossprod(score.beta[[i]],est.cov[[i]])))
+    }
+  }
+  if(Method == "RE-SKAT"){
+    U.tau.b = 0
+    a2 = 0
+    a3 = 0
+    a4 = 0
+    for( i in 1:j ){
+      est.inv = ginv(est.cov[[i]])
+      U.tau.b = U.tau.b + crossprod(crossprod(score.beta[[i]], ginv(est.inv)), crossprod(t(W), crossprod(score.beta[[i]],est.inv)))
+      a2 = a2 + trace(crossprod(t(est.inv),est.inv))
+      a3 = a3 + trace(crossprod(t(est.inv),est.inv))
+      a4  = a4 + trace(crossprod(t(est.inv),est.inv))
+    }
+    a1 = trace(crossprod(t(est.cov.meta),est.cov.meta))
+    U.tau.b = 1/2 * U.tau.b + 1/2 * trace(est.cov.inv)
+    U.tau.w = 1/2 * crossprod( score.beta.meta, crossprod(t(est.cov.inv), crossprod( t(est.cov.inv), score.beta.meta)))
+    + 1/2 * trace(est.cov.inv) #SKAT-VC
+  }
+  score.stat.meta = crossprod(c(U.tau.w, U.tau.b), crossprod(1/2 * matrix(c(a1,a2,a3,a4),ncol = 2), c(U.tau.w, U.tau.b)))
+}
 
   return(as.numeric(score.stat.meta.perm))  # return the test statistics
 }
