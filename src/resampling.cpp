@@ -8,7 +8,7 @@ using namespace Rcpp;
 
 arma::vec colSums(arma::mat tmp){
   int cols = tmp.n_cols;
-  arma::vec res(5, arma::fill::none);
+  arma::vec res(cols, arma::fill::none);
   for (size_t i = 0; i< cols; i++){
     res(i) = sum(tmp.col(i));
   }
