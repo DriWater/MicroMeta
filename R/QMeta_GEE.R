@@ -182,7 +182,8 @@
   score.alpha = NULL
   score.pvalue.alpha = NULL
   est.cov.zero = NULL
-
+  score.alpha.meta  = rep(0,n.par.interest.alpha) ## A
+  est.cov.meta = matrix(0, nrow = n.par.interest.alpha, ncol = n.par.interest.alpha) ## B
   for ( j in 1:iter.num){
 
     vA.list = vA.list.meta[[j]]
@@ -234,15 +235,9 @@
     score.alpha[[j]] = A
     est.cov.zero[[j]] = B
     score.pvalue.alpha = append(score.pvalue.alpha, (1 - pchisq(score.stat.alpha.perm, n.par.interest.alpha)))
-
-  }
-  score.alpha.meta  = rep(0,n.par.interest.alpha) ## A
-  est.cov.meta = matrix(0, nrow = n.par.interest.alpha, ncol = n.par.interest.alpha) ## B
-  for(i in 1:iter.num)
-  {
-    idx = col.zero.index.list[[i]]
-    score.alpha.meta[idx] =  score.alpha.meta[idx] +  score.alpha[[i]]  #FE-Burden
-    est.cov.meta[idx, idx] =  est.cov.meta[idx, idx] + est.cov.zero[[i]] #FE-SKAT
+    idx = col.zero.index.list[[j]]
+    score.alpha.meta[idx] =  score.alpha.meta[idx] +  A
+    est.cov.meta[idx, idx] =  est.cov.meta[idx, idx] + B
   }
   save.index.zero = which(abs(score.alpha.meta) >= 1e-7)
   n.par.save.alpha = length(save.index.zero)
@@ -252,7 +247,7 @@
   weight.cov.zero = NULL
   if (Method == "MV")
   {
-    score.stat.alpha.perm = score.alpha.meta %*% est.cov.inv %*% score.alpha.meta #FE-Burden
+    score.stat.alpha.perm = score.alpha.meta %*% est.cov.inv %*% score.alpha.meta
   }
   if (Method == "SKAT")
   {

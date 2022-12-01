@@ -21,7 +21,7 @@
   # calculate the exponential of beta times X
   Ei.out <- rep(NA, m)
   for (j in 1:(m - 1)) {
-    Ei.out[j] <- exp(beta[((j - 1) * p + 1):(j * p)] %*% X.i)
+    Ei.out[j] = exp(crossprod(beta[((j-1)*p+1):(j*p)], X.i))
   }
 
 
@@ -53,7 +53,7 @@
       E.i <- .Ei.beta(m, p, beta, X[i, ], Y[i, ])
       sum.E.i <- sum(E.i)
       P.i <- E.i / sum.E.i
-      loglik <- loglik + Y[i, ] %*% log(P.i)
+      loglik <- loglik + crossprod(Y[i,], log(P.i))
     }
   }
 
@@ -229,15 +229,15 @@
       B2 <- B2 + Score.reduce.reorg[i, ] %o% Score.reduce.reorg[i, ]
     }
 
-    B <- B1 %*% B2 %*% t(B1)
-    score.stat.beta <- A %*% ginv(B) %*% A
+    B = crossprod(t(B1), tcrossprod(B2, B1))
+    score.stat.beta = crossprod( A, crossprod(t(ginv(B)), A))
   }
 
   # save those summary statistics for later use
   return(list(score.stat.beta = score.stat.beta, score.beta = A, est.cov = B, S.beta.list = S.beta.list, I.beta.list = I.beta.list))
 }
 
-.Score.test.stat.meta.4Gresampling <- function(X.perm.list, X.par.index, n.par.interest.beta, col.index.list, S.beta.list.meta, I.beta.list.meta, Method = "MV", W = NULL) {
+.Score.test.stat.meta.4Gresampling <- function(X.perm.list, X.par.index, n.par.interest.beta, col.index.list, S.beta.list.meta, I.beta.list.meta, Method = "FE-MV", W = NULL) {
   stu.num <- length(X.perm.list) #  the total number of studies for meta analysis
 
   # initialize those statistics
@@ -286,11 +286,11 @@
 
 
     # re-organized the score statistics and estimate covariance matrix based on the parameter of interest
-    A <- colSums(Score.reduce.beta.perm.reorg)[1:n.par.interest.beta]
+    A = colSums(Score.reduce.beta.perm.reorg)[1:n.par.beta.interest]
 
-    B1 <- cbind(diag(n.par.interest.beta), -Hess.reduce.beta.perm.reorg[(1:n.par.interest.beta), ((n.par.interest.beta + 1):n.beta)] %*% ginv(Hess.reduce.beta.perm.reorg[((n.par.interest.beta + 1):n.beta), ((n.par.interest.beta + 1):n.beta)]))
+    B1 = cbind(diag(n.par.beta.interest), tcrossprod(-Hess.reduce.beta.perm.reorg[(1:n.par.beta.interest), ((n.par.beta.interest+1):n.beta)] , t(ginv(Hess.reduce.beta.perm.reorg[((n.par.beta.interest+1):n.beta), ((n.par.beta.interest+1):n.beta)]))))
 
-    B2 <- matrix(0, n.beta, n.beta)
+    B2 =  matrix(0, n.beta, n.beta)
 
     for (i in 1:n) {
       B2 <- B2 + Score.reduce.beta.perm.reorg[i, ] %o% Score.reduce.beta.perm.reorg[i, ]
@@ -316,27 +316,28 @@
     est.cov.meta[idx, idx] <- est.cov.meta[idx, idx] + est.cov[[i]]
   }
   est.cov.inv <- ginv(est.cov.meta)
-  if (Method == "MV") {
+  if (Method == "FE-MV") {
     score.stat.meta.perm <- score.beta.meta %*% est.cov.inv %*% score.beta.meta # Multivariate test
   }
-  if (Method == "SKAT") {
-    if (is.null(W)) {
-      W <- diag(1, nrow = n.par.interest.beta)
-    }
-    score.stat.meta.perm <- score.beta.meta %*% W %*% score.beta.meta  # FE-SKAT-test(FE-SKAT)
-  }
-  if (Method == "VC") {
+  # if (Method == "SKAT") {
+  #   if (is.null(W)) {
+  #     W <- diag(1, nrow = n.par.interest.beta)
+  #   }
+  #   score.stat.meta.perm <- score.beta.meta %*% W %*% score.beta.meta  # FE-SKAT-test(FE-SKAT)
+  # }
+  if (Method == "FE-VC") {
     weight.cov.inv <- eigen(est.cov.inv)$values
     score.stat.meta.perm <- score.beta.meta %*% est.cov.inv %*% est.cov.inv %*% score.beta.meta # FE-VC-test(SKAT-VC)
   }
-  if (Method == "Fisher") {
-    score.stat.meta.perm <- -2 * sum(log(score.pvalue.beta)) # the Fisher's p-value combination
-  }
+  # if (Method == "Fisher") {
+  #   score.stat.meta.perm <- -2 * sum(log(score.pvalue.beta)) # the Fisher's p-value combination
+  # }
   if(Method == "Het-SKAT"){
     #W = diag(1,nrow = n.par.interest.beta)
-    score.stat.meta = 0
+    score.stat.meta.perm = 0
     for( i in 1:j ){
-      score.stat.meta = score.stat.meta + tcrossprod(crossprod(score.beta[[i]], ginv(est.cov[[i]])), crossprod(score.beta[[i]],est.cov[[i]]))
+      est.inv = ginv(est.cov[[i]])
+      score.stat.meta.perm = score.stat.meta.perm + tcrossprod(crossprod(score.beta[[i]], est.inv), crossprod(score.beta[[i]], est.inv))
     }
   }
   if(Method == "RE-SKAT"){
@@ -346,22 +347,85 @@
     a4 = 0
     for( i in 1:j ){
       est.inv = ginv(est.cov[[i]])
-      U.tau.b = U.tau.b + tcrossprod(crossprod(score.beta[[i]], ginv(est.inv)), crossprod(score.beta[[i]],est.inv))
-      a2 = a2 + trace(crossprod(t(est.inv),est.inv))
-      a3 = a3 + trace(crossprod(t(est.inv),est.inv))
-      a4  = a4 + trace(crossprod(t(est.inv),est.inv))
+      U.tau.b = U.tau.b + tcrossprod(crossprod(score.beta[[i]],est.inv), crossprod(score.beta[[i]], est.inv))
+      a2 = a2 + sum(diag(crossprod(t(est.inv),est.inv)))
+      a3 = a3 + sum(diag(crossprod(t(est.inv),est.inv)))
+      a4  = a4 + sum(diag(crossprod(t(est.inv),est.inv)))
     }
-    a1 = trace(crossprod(t(est.cov.meta),est.cov.meta))
-    U.tau.b = 1/2 * U.tau.b + 1/2 * trace(est.cov.inv)
+    a1 = sum(diag(crossprod(t(est.cov.inv),est.cov.inv)))
+    U.tau.b = 1/2 * U.tau.b + 1/2 * sum(diag(est.cov.inv))
     U.tau.w = 1/2 * crossprod( score.beta.meta, crossprod(t(est.cov.inv), crossprod( t(est.cov.inv), score.beta.meta)))
-    + 1/2 * trace(est.cov.inv) #SKAT-VC
-    score.stat.meta = crossprod(c(U.tau.w, U.tau.b), crossprod(1/2 * matrix(c(a1,a2,a3,a4),ncol = 2), c(U.tau.w, U.tau.b)))
+    + 1/2 * sum(diag(est.cov.inv))
+    score.stat.meta.perm = crossprod(c(U.tau.w, U.tau.b), crossprod(1/2 * matrix(c(a1,a2,a3,a4),ncol = 2), c(U.tau.w, U.tau.b)))
   }
 
   return(as.numeric(score.stat.meta.perm))  # return the test statistics
 }
 
-.resample.work.one.meta <- function(X.list, X.par.index, n.par.interest.beta, col.index.list, score.stat.meta, S.beta.list.meta, I.beta.list.meta, start.nperm, end.nperm, n.one, one.acc, Method = "MV", W = NULL) {
+
+.Score.test.stat.meta.4Gresampling.c <- function(X.perm.list, X.par.index, n.par.interest.beta, col.index.list, S.beta.list.meta, I.beta.list.meta, Method = "FE-MV", W = NULL){
+  tmp = score_test_stat_meta_resampling_c(X.perm.list, col.index.list, S.beta.list.meta, I.beta.list.meta, X.par.index, n.par.interest.beta)
+  est.cov.meta = tmp$est_cov_meta
+  score.beta.meta = tmp$score_beta_meta
+  est.cov = tmp$est_cov
+  score.beta = tmp$score_beta
+  save.index.pos = which(abs(score.beta.meta) >= 1e-7)
+  score.beta.meta = score.beta.meta[save.index.pos]
+  est.cov.meta = est.cov.meta[save.index.pos,save.index.pos]
+  est.cov.inv = ginv(est.cov.meta)
+  if (Method == "FE-MV")
+  {
+    score.stat.meta.perm = crossprod( score.beta.meta, crossprod(t(est.cov.inv), score.beta.meta)) #FE-Burden
+  }
+  # if (Method == "SKAT")
+  # {
+  #   if(is.null(W))
+  #   {
+  #     W = diag(1,nrow = n.par.interest.beta)
+  #   }
+  #   #fesk.p = farebrother(score.stat.fesk,weight, h = rep(1,m-1), delta = rep(0,m-1), maxit = 100000,eps = 10^(-10), mode = 1)$Qq
+  #   score.stat.meta.perm = crossprod( score.beta.meta, crossprod(t(W), score.beta.meta))
+  # }
+  if (Method == "FE-VC")
+  {
+    weight.cov.inv = eigen(est.cov.inv)$values #eign.val/sum(eign.val)
+    score.stat.meta.perm = crossprod( score.beta.meta,  crossprod(t(est.cov.inv), crossprod(t(est.cov.inv), score.beta.meta))) #SKAT-VC
+  }
+  # if (Method == "Fisher")
+  # {
+  #   score.stat.meta.perm = -2 * sum(log(score.pvalue.beta))
+  # }
+  #
+  if(Method == "Het-SKAT"){
+    #W = diag(1,nrow = n.par.interest.beta)
+    score.stat.meta.perm = 0
+    for( i in 1:j ){
+      est.inv = ginv(est.cov[[i]])
+      score.stat.meta.perm = score.stat.meta.perm + tcrossprod(crossprod(score.beta[[i]], est.inv), crossprod(score.beta[[i]], est.inv))
+    }
+  }
+  if(Method == "RE-SKAT"){
+    U.tau.b = 0
+    a2 = 0
+    a3 = 0
+    a4 = 0
+    for( i in 1:j ){
+      est.inv = ginv(est.cov[[i]])
+      U.tau.b = U.tau.b + tcrossprod(crossprod(score.beta[[i]],est.inv), crossprod(score.beta[[i]], est.inv))
+      a2 = a2 + sum(diag(crossprod(t(est.inv),est.inv)))
+      a3 = a3 + sum(diag(crossprod(t(est.inv),est.inv)))
+      a4  = a4 + sum(diag(crossprod(t(est.inv),est.inv)))
+    }
+    a1 = sum(diag(crossprod(t(est.cov.inv),est.cov.inv)))
+    U.tau.b = 1/2 * U.tau.b + 1/2 * sum(diag(est.cov.inv))
+    U.tau.w = 1/2 * crossprod( score.beta.meta, crossprod(t(est.cov.inv), crossprod( t(est.cov.inv), score.beta.meta)))
+    + 1/2 * sum(diag(est.cov.inv))  #SKAT-VC
+    score.stat.meta.perm = crossprod(c(U.tau.w, U.tau.b), crossprod(1/2 * matrix(c(a1,a2,a3,a4),ncol = 2), c(U.tau.w, U.tau.b)))
+  }
+  return(as.numeric(score.stat.meta.perm))
+}
+
+.resample.work.one.meta <- function(X.list, X.par.index, n.par.interest.beta, col.index.list, score.stat.meta, S.beta.list.meta, I.beta.list.meta, start.nperm, end.nperm, n.one, one.acc, Method = "FE-MV", W = NULL) {
   n.one.new <- n.one
   one.acc.new <- one.acc
 
@@ -374,7 +438,7 @@
       X.perm.list[[p]][, X.par.index] <- X.list[[p]][idx, X.par.index]
     }
     # get the permutation test statistics
-    score.stat.meta.perm <- try(.Score.test.stat.meta.4Gresampling(X.perm.list, X.par.index, n.par.interest.beta, col.index.list, S.beta.list.meta, I.beta.list.meta, Method = Method, W = NULL))
+    score.stat.meta.perm <- try(.Score.test.stat.meta.4Gresampling.c(X.perm.list, X.par.index, n.par.interest.beta, col.index.list, S.beta.list.meta, I.beta.list.meta, Method = Method, W = NULL))
 
     if (class(score.stat.meta.perm) != "try-error") {
       n.one.new <- n.one.new + 1 # if score.stat.meta.perm exists, then n.one.new + 1
@@ -403,7 +467,7 @@
   return(list(n.one.new = n.one.new, one.acc.new = one.acc.new, flag = flag, next.end.nperm = next.end.nperm))
 }
 
-.Score.test.meta <- function(Y.list, X.list, X.par.index, seed = 11, resample = FALSE, n.replicates = NULL, Method = "MV", Weight = NULL) {
+.Score.test.meta <- function(Y.list, X.list, X.par.index, seed = 11, resample = FALSE, n.replicates = NULL, Method = "FE-MV", Weight = NULL) {
   stu.num <- length(X.list) # determine the total study number for meta analysis
   W <- Weight
   m <- ncol(Y.list[[1]])
@@ -415,7 +479,7 @@
   if (sum(X.par.index == 1)) {
     stop("Error: Testing parameters for the intercept is not informative. (Beta part)")
   }
-  if (!Method %in% c("Fisher", "MV", "SKAT", "VC")) {
+  if(! Method %in% c('Fisher',"FE-MV",'SKAT',"FE-VC","Het-SKAT","RE-SKAT")){
     stop("Error: Please Choose a Proper Meta-analysis Method")
   }
   # the taxa of each study should be the same
@@ -436,9 +500,12 @@
   }
   if (is.null(X.par.index) || n == 0) {
     # initialize the test statistics
-    score.stat.beta <- NULL
-    score.beta <- NULL
-    est.cov <- NULL
+    score.stat.beta = NULL
+    score.beta = NULL
+    est.cov = NULL
+    score.pvalue.beta = NULL
+    score.pvalue = NULL
+    df = NULL
     score.pvalue.beta <- NULL
     n.par.interest.beta <- NULL
     S.beta.list.meta <- NULL
@@ -491,33 +558,38 @@
     score.stat.meta <- NULL
   } else {
     # initialize the score statistics and estimate covariance matrix for meta analysis
-    score.beta.meta <- rep(0, n.par.interest.beta)
-    est.cov.meta <- matrix(0, nrow = n.par.interest.beta, ncol = n.par.interest.beta)
-    for (i in 1:j)
+    score.beta.meta  = rep(0,n.par.interest.beta) ## A
+    est.cov.meta = matrix(0, nrow = n.par.interest.beta, ncol = n.par.interest.beta) ## B
+    for(i in 1:j)
     {
-      score.beta.meta <- score.beta.meta + score.beta[[i]]
-      est.cov.meta <- est.cov.meta + est.cov[[i]]
+      idx = col.index.list[[i]]
+      score.beta.meta[idx] =  score.beta.meta[idx] +  score.beta[[i]]  #FE-Burden
+      est.cov.meta[idx,idx] =  est.cov.meta[idx,idx] + est.cov[[i]] #FE-SKAT
     }
-    est.cov.inv <- ginv(est.cov.meta)
-    if (Method == "MV") { # Multivariate test
+    save.index.pos = which(abs(score.beta.meta) >= 1e-7)
+    n.par.save.beta = length(save.index.pos)
+    score.beta.meta = score.beta.meta[save.index.pos]
+    est.cov.meta = est.cov.meta[save.index.pos,save.index.pos]
+    est.cov.inv = ginv(est.cov.meta)
+    if (Method == "FE-MV") { # Multivariate test
       score.stat.meta <- score.beta.meta %*% est.cov.inv %*% score.beta.meta
       score.pvalue <- 1 - pchisq(score.stat.meta, df = n.par.interest.beta) # follow chisq distribution under null hypothesis
       df <- n.par.interest.beta
     }
-    if (Method == "SKAT") {
-      if (is.null(W)) {
-        W <- diag(1, nrow = n.par.interest.beta) # Create the identity matrix if weight matrix does not provide
-      }
-      eigen.cov <- eigen(est.cov.meta)
-      eigen.cov.sqrt <- eigen.cov$vectors %*% diag(sqrt(eigen.cov$values), nrow = length(eigen.cov$values)) %*% solve(eigen.cov$vectors)
-      weight.cov <- eigen(eigen.cov.sqrt %*% W %*% eigen.cov.sqrt)$values
-      score.stat.meta <- score.beta.meta %*% W %*% score.beta.met
-      ## use the davies method to get the p-value of statistics follow mixture gamma distribution
-      score.pvalue <- davies(score.stat.meta, weight.cov, h = rep(1, n.par.interest.beta), delta = rep(0, n.par.interest.beta), sigma = 0, lim = 10000, acc = 0.0001)$Qq
-      score.pvalue <- ifelse(score.pvalue > 0, score.pvalue, 1e-7)
-      df <- n.par.interest.beta
-    }
-    if (Method == "VC") {
+    # if (Method == "SKAT") {
+    #   if (is.null(W)) {
+    #     W <- diag(1, nrow = n.par.interest.beta) # Create the identity matrix if weight matrix does not provide
+    #   }
+    #   eigen.cov <- eigen(est.cov.meta)
+    #   eigen.cov.sqrt <- eigen.cov$vectors %*% diag(sqrt(eigen.cov$values), nrow = length(eigen.cov$values)) %*% solve(eigen.cov$vectors)
+    #   weight.cov <- eigen(eigen.cov.sqrt %*% W %*% eigen.cov.sqrt)$values
+    #   score.stat.meta <- score.beta.meta %*% W %*% score.beta.met
+    #   ## use the davies method to get the p-value of statistics follow mixture gamma distribution
+    #   score.pvalue <- davies(score.stat.meta, weight.cov, h = rep(1, n.par.interest.beta), delta = rep(0, n.par.interest.beta), sigma = 0, lim = 10000, acc = 0.0001)$Qq
+    #   score.pvalue <- ifelse(score.pvalue > 0, score.pvalue, 1e-7)
+    #   df <- n.par.interest.beta
+    # }
+    if (Method == "FE-VC") {
       weight.cov.inv <- eigen(est.cov.inv)$values
       score.stat.meta <- score.beta.meta %*% est.cov.inv %*% est.cov.inv %*% score.beta.meta # SKAT-VC
       ## use the davies method to get the p-value of statistics follow mixture gamma distribution
@@ -525,17 +597,19 @@
       score.pvalue <- ifelse(score.pvalue > 0, score.pvalue, 1e-7)
       df <- n.par.interest.beta
     }
-    if (Method == "Fisher") {
-      # Fisher's p-value combination
-      score.stat.meta <- -2 * sum(log(score.pvalue.beta))
-      score.pvalue <- .F.test(score.pvalue.beta)
-      df <- length(score.pvalue.beta)
-    }
+    # if (Method == "Fisher") {
+    #   # Fisher's p-value combination
+    #   score.stat.meta <- -2 * sum(log(score.pvalue.beta))
+    #   score.pvalue <- .F.test(score.pvalue.beta)
+    #   df <- length(score.pvalue.beta)
+    # }
     if(Method == "Het-SKAT"){
-      #W = diag(1,nrow = n.par.interest.beta)
+      # W = diag(1,nrow = n.par.interest.beta)
       score.stat.meta = 0
       for( i in 1:j ){
-        score.stat.meta = score.stat.meta + tcrossprod(crossprod(score.beta[[i]], ginv(est.cov[[i]])), crossprod(score.beta[[i]],est.cov[[i]]))
+        est.inv = ginv(est.cov[[i]])
+        tmp  = tcrossprod(crossprod(score.beta[[i]],est.inv), crossprod(score.beta[[i]], est.inv))
+        score.stat.meta = score.stat.meta + tcrossprod(crossprod(score.beta[[i]],est.inv), crossprod(score.beta[[i]], est.inv))
       }
     }
     if(Method == "RE-SKAT"){
@@ -545,19 +619,19 @@
       a4 = 0
       for( i in 1:j ){
         est.inv = ginv(est.cov[[i]])
-        U.tau.b = U.tau.b + tcrossprod(crossprod(score.beta[[i]], ginv(est.inv)), crossprod(score.beta[[i]],est.inv))
-        a2 = a2 + trace(crossprod(t(est.inv),est.inv))
-        a3 = a3 + trace(crossprod(t(est.inv),est.inv))
-        a4  = a4 + trace(crossprod(t(est.inv),est.inv))
+        U.tau.b = U.tau.b + tcrossprod(crossprod(score.beta[[i]],est.inv), crossprod(score.beta[[i]], est.inv))
+        a2 = a2 + sum(diag(crossprod(t(est.inv),est.inv)))
+        a3 = a3 + sum(diag(crossprod(t(est.inv),est.inv)))
+        a4  = a4 + sum(diag(crossprod(t(est.inv),est.inv)))
       }
-      a1 = trace(crossprod(t(est.cov.meta),est.cov.meta))
-      U.tau.b = 1/2 * U.tau.b + 1/2 * trace(est.cov.inv)
+      a1 = sum(diag(crossprod(t(est.cov.inv),est.cov.inv)))
+      U.tau.b = 1/2 * U.tau.b + 1/2 * sum(diag(est.cov.inv))
       U.tau.w = 1/2 * crossprod( score.beta.meta, crossprod(t(est.cov.inv), crossprod( t(est.cov.inv), score.beta.meta)))
-      + 1/2 * trace(est.cov.inv) #SKAT-VC
+      + 1/2 * sum(diag(est.cov.inv)) #SKAT-VC
       score.stat.meta = crossprod(c(U.tau.w, U.tau.b), crossprod(1/2 * matrix(c(a1,a2,a3,a4),ncol = 2), c(U.tau.w, U.tau.b)))
     }
   }
-  beta.meta.results <- list(score.stat = score.stat.meta, score.pvalue = score.pvalue, df = df, score.pvalue.beta = score.pvalue.beta)
+  beta.meta.results = list(score.stat = score.stat.meta, score.pvalue = score.pvalue, df = df)
 
   # if resample = TRUE then will apply permutation method to get permuted p-value
   if (resample) {
@@ -626,7 +700,7 @@
 #' @export
 #'
 #' @examples
-QCAT_Meta <- function(OTU, X, X.index, Tax = NULL, Method = "MV", Weight = NULL, min.depth = 0, n.perm = NULL, fdr.alpha = 0.05) {
+QCAT_Meta <- function(OTU, X, X.index, Tax = NULL, Method = "FE-MV", Weight = NULL, min.depth = 0, n.perm = NULL, fdr.alpha = 0.05) {
   n.sample <- n.perm
   W <- Weight
   n.OTU <- length(OTU)
