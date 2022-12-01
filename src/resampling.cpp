@@ -45,9 +45,7 @@ Rcpp::List score_test_stat_meta_resampling_c(const Rcpp::List& X_perm_list, cons
       arma::rowvec vec2 = arma::conv_to< arma::rowvec >::from(X_perm.row(j));
       Score_reduce_beta_perm.row(j) += arma::kron(vec1, vec2);
       arma::mat mat1 = I_beta_list[j];
-      // arma::mat mat2 = X_perm.row(0).t() * X_perm.row(0);
       Hess_reduce_beta_perm += arma::kron(mat1, X_perm.row(j).t() * X_perm.row(j));
-      // arma::mat mat2 = arma::kron(mat1, X_perm.row(0).t() * X_perm.row(0));
     }
     arma::mat Score_reduce_beta_perm_reorg = arma::join_rows(Score_reduce_beta_perm.cols(par_interest_index_beta),Score_reduce_beta_perm.cols(par_disinterest_index_beta));
     arma::mat Hess_reduce_beta_perm_reorg = arma::join_cols(arma::join_rows(Hess_reduce_beta_perm.submat(par_interest_index_beta,par_interest_index_beta), Hess_reduce_beta_perm.submat(par_interest_index_beta,par_disinterest_index_beta)),
