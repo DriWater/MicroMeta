@@ -362,7 +362,6 @@
   return(as.numeric(score.stat.meta.perm))  # return the test statistics
 }
 
-
 .Score.test.stat.meta.4Gresampling.c <- function(X.perm.list, X.par.index, n.par.interest.beta, col.index.list, S.beta.list.meta, I.beta.list.meta, Method = "FE-MV", W = NULL){
   tmp = score_test_stat_meta_resampling_c(X.perm.list, col.index.list, S.beta.list.meta, I.beta.list.meta, X.par.index, n.par.interest.beta)
   est.cov.meta = tmp$est_cov_meta

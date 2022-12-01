@@ -2,7 +2,6 @@
 // [[Rcpp::depends(RcppArmadillo)]]
 using namespace Rcpp;
 
-// [[Rcpp::export]]
 arma::vec colSums_c(arma::mat tmp){
   int cols = tmp.n_cols;
   arma::vec res(cols, arma::fill::none);
@@ -19,6 +18,8 @@ Rcpp::List score_test_stat_meta_resampling_c(const Rcpp::List& X_perm_list, cons
   arma::vec score_stat_beta = arma::vec(n_par_interest_beta,arma::fill::zeros);
   arma::vec score_stat_beta_vec = arma::vec(total_num);
   arma::mat est_cov_meta(n_par_interest_beta,n_par_interest_beta);
+  Rcpp::List score_beta(total_num);
+  Rcpp::List est_cov(total_num);
   est_cov_meta.zeros();
   for(int i = 0; i < total_num; i++){
     Rcpp::List S_beta_list = S_beta_list_meta[i];
@@ -45,7 +46,9 @@ Rcpp::List score_test_stat_meta_resampling_c(const Rcpp::List& X_perm_list, cons
       arma::rowvec vec2 = arma::conv_to< arma::rowvec >::from(X_perm.row(j));
       Score_reduce_beta_perm.row(j) += arma::kron(vec1, vec2);
       arma::mat mat1 = I_beta_list[j];
+      // arma::mat mat2 = X_perm.row(0).t() * X_perm.row(0);
       Hess_reduce_beta_perm += arma::kron(mat1, X_perm.row(j).t() * X_perm.row(j));
+      // arma::mat mat2 = arma::kron(mat1, X_perm.row(0).t() * X_perm.row(0));
     }
     arma::mat Score_reduce_beta_perm_reorg = arma::join_rows(Score_reduce_beta_perm.cols(par_interest_index_beta),Score_reduce_beta_perm.cols(par_disinterest_index_beta));
     arma::mat Hess_reduce_beta_perm_reorg = arma::join_cols(arma::join_rows(Hess_reduce_beta_perm.submat(par_interest_index_beta,par_interest_index_beta), Hess_reduce_beta_perm.submat(par_interest_index_beta,par_disinterest_index_beta)),
@@ -64,6 +67,8 @@ Rcpp::List score_test_stat_meta_resampling_c(const Rcpp::List& X_perm_list, cons
     arma::mat B = B1 * B2 * B1.t();
     arma::mat t = A.t() * arma::pinv(B) * A;
     double score_stat_beta_perm = t(0,0);
+    score_beta[i] = A;
+    est_cov[i] = B;
     arma::vec mat_idx  = col_index_list[i];
     arma::uvec index = arma::conv_to< arma::uvec >::from(mat_idx - 1);
     est_cov_meta.submat(index,index)  +=  B;
@@ -71,6 +76,8 @@ Rcpp::List score_test_stat_meta_resampling_c(const Rcpp::List& X_perm_list, cons
     score_stat_beta_vec(i) = score_stat_beta_perm;
   }
   return Rcpp::List::create(Rcpp::Named("score_statistics") = score_stat_beta_vec,
-                            Rcpp::Named("score_stat_beta") = score_stat_beta,
-                            Rcpp::Named("est_cov_meta") = est_cov_meta);
+                            Rcpp::Named("score_beta_meta") = score_stat_beta,
+                            Rcpp::Named("score_beta") = score_beta,
+                            Rcpp::Named("est_cov_meta") = est_cov_meta,
+                            Rcpp::Named("est_cov") = est_cov);
 }
