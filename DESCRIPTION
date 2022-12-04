@@ -10,6 +10,7 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.2
 Imports: 
     data.table,
+    dplyr,
     Rcpp
 LinkingTo: 
     Rcpp,
