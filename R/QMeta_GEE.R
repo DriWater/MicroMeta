@@ -29,7 +29,7 @@
 
   for(j in 1:m){
 
-    tmp = exp(alpha[((j-1)*p+1):(j*p)] %*% X.i)
+    tmp = exp(crossprod(alpha[((j-1)*p+1):(j*p)], X.i))
     if(is.infinite(tmp)){
       Pi.out[j] = 1
     }else{
@@ -207,7 +207,7 @@
 
   A = colSums(Score.reduce.reorg)[1:n.par.interest.alpha]
 
-  B1 = cbind(diag(n.par.interest.alpha), -Hess.reduce.reorg[(1:n.par.interest.alpha), ((n.par.interest.alpha+1):n.alpha)] %*% ginv(Hess.reduce.reorg[((n.par.interest.alpha+1):n.alpha), ((n.par.interest.alpha+1):n.alpha)]) )
+  B1 = cbind(diag(n.par.interest.alpha), tcrossprod(-Hess.reduce.reorg[(1:n.par.interest.alpha), ((n.par.interest.alpha+1):n.alpha)] , t(ginv(Hess.reduce.reorg[((n.par.interest.alpha+1):n.alpha), ((n.par.interest.alpha+1):n.alpha)]))))
 
   B2 =  matrix(0, n.alpha, n.alpha)
   for(i in 1:n){
@@ -256,9 +256,9 @@
       ###################################################
       tD.tmp = kronecker(.diag2(vA.list[[i]]), as.matrix(Z.perm[i,], ncol=1))
 
-      Score.reduce.alpha.perm[i,] = Score.reduce.alpha.perm[i,] + tD.tmp %*% VY.list[[i]]
+      Score.reduce.alpha.perm[i,] = Score.reduce.alpha.perm[i,] + crossprod(t(tD.tmp),VY.list[[i]])
 
-      Hess.reduce.alpha.perm = Hess.reduce.alpha.perm + tD.tmp %*% Vinv.list[[i]] %*% t(tD.tmp)
+      Hess.reduce.alpha.perm = Hess.reduce.alpha.perm + crossprod(t(tD.tmp), tcrossprod(Vinv.list[[i]], tD.tmp))
 
 
     }
@@ -271,15 +271,15 @@
 
     A = colSums(Score.reduce.reorg)[1:n.par.alpha]
 
-    B1 = cbind(diag(n.par.alpha), -Hess.reduce.reorg[(1:n.par.alpha), ((n.par.alpha+1):n.alpha)] %*% ginv(Hess.reduce.reorg[((n.par.alpha+1):n.alpha), ((n.par.alpha+1):n.alpha)]) )
+    B1 = cbind(diag(n.par.alpha), tcrossprod(-Hess.reduce.reorg[(1:n.par.alpha), ((n.par.alpha+1):n.alpha)], t(ginv(Hess.reduce.reorg[((n.par.alpha+1):n.alpha), ((n.par.alpha+1):n.alpha)]))))
 
     B2 =  matrix(0, n.alpha, n.alpha)
     for(i in 1:n){
       B2 = B2 + Score.reduce.reorg[i,] %o% Score.reduce.reorg[i,]
     }
 
-    B = B1 %*% B2 %*% t(B1)
-    score.stat.alpha.perm = A %*% ginv(B) %*% A
+    B = crossprod(t(B1), tcrossprod(B2, B1))
+    score.stat.alpha.perm = crossprod( A, crossprod(t(ginv(B)), A))
     score.stat.alpha = append(score.stat.alpha, score.stat.alpha.perm)
     score.alpha[[j]] = A
     est.cov.zero[[j]] = B
@@ -297,7 +297,7 @@
   weight.cov.zero = NULL
   if (Method == "FE-MV")
   {
-    score.stat.alpha.perm = score.alpha.meta %*% est.cov.inv %*% score.alpha.meta #FE-Burden
+    score.stat.alpha.perm = crossprod( score.alpha.meta, crossprod(t(est.cov.inv), score.alpha.meta)) #FE-Burden
   }
   # if (Method == "SKAT")
   # {
@@ -316,14 +316,15 @@
   if (Method == "FE-VC")
   {
     # weight.cov.zero = eigen(est.cov.inv)$values #eign.val/sum(eign.val)
-    score.stat.alpha.perm = score.alpha.meta %*% est.cov.inv %*% est.cov.inv %*% score.alpha.meta #SKAT-VC
+    #
+    score.stat.alpha.perm = crossprod( score.alpha.meta, crossprod(t(est.cov.inv), crossprod( t(est.cov.inv), score.alpha.meta))) #SKAT-VC
   }
   if(Method == "Het-SKAT"){
     #W = diag(1,nrow = n.par.interest.beta)
     score.stat.alpha.perm = 0
 
     for( i in 1:iter.num ){
-      est.inv = ginv(est.cov[[i]])
+      est.inv = ginv(est.cov.zero[[i]])
       score.stat.alpha.perm = score.stat.alpha.perm + tcrossprod(crossprod(score.alpha[[i]], est.inv), crossprod(score.alpha[[i]], est.inv))
     }
   }
@@ -333,7 +334,7 @@
     a3 = 0
     a4 = 0
     for( i in 1:iter.num ){
-      est.inv = ginv(est.cov[[i]])
+      est.inv = ginv(est.cov.zero[[i]])
       U.tau.b = U.tau.b + tcrossprod(crossprod(score.alpha[[i]],est.inv), crossprod(score.alpha[[i]], est.inv))
       a2 = a2 + sum(diag(crossprod(t(est.inv),est.inv)))
       a3 = a3 + sum(diag(crossprod(t(est.inv),est.inv)))
@@ -358,7 +359,7 @@
 #                                             const Rcpp::List& VY_list_meta, const arma::vec& Z_par_index,int n_par_interest_alpha)
 
 .Score.test.stat.zero.meta.4Gresampling.c <- function(Z.perm.list, Z.par.index, n.par.interest.alpha, col.zero.index.list, vA.list.meta, Vinv.list.meta, VY.list.meta, Method = "FE-MV", W.zero = NULL){
-  tmp = score_test_stat_meta_resampling_c(Z.perm.list, col.zero.index.list, vA.list.meta, Vinv.list.meta, VY.list.meta, Z.par.index, n.par.interest.alpha)
+  tmp = score_test_stat_zero_meta_resampling_c(Z.perm.list, col.zero.index.list, vA.list.meta, Vinv.list.meta, VY.list.meta, Z.par.index, n.par.interest.alpha)
   est.cov.meta = tmp$est_cov_meta
   score.alpha.meta = tmp$score_alpha_meta
   est.cov = tmp$est_cov
@@ -370,7 +371,7 @@
   iter.num = length(Z.perm.list)
   if (Method == "FE-MV")
   {
-    score.stat.alpha.perm = score.alpha.meta %*% est.cov.inv %*% score.alpha.meta #FE-Burden
+    score.stat.alpha.perm = crossprod(score.alpha.meta, crossprod(t(est.cov.inv), score.alpha.meta)) #FE-Burden
   }
   # if (Method == "SKAT")
   # {
@@ -389,7 +390,7 @@
   if (Method == "FE-VC")
   {
     #weight.cov.zero = eigen(est.cov.inv)$values #eign.val/sum(eign.val)
-    score.stat.alpha.perm = score.alpha.meta %*% est.cov.inv %*% est.cov.inv %*% score.alpha.meta #SKAT-VC
+    score.stat.alpha.perm = crossprod(score.alpha.meta, crossprod(t(est.cov.inv ), crossprod(t(est.cov.inv ), score.alpha.meta))) #SKAT-VC
   }
   # if (Method == "Fisher")
   # {
@@ -447,7 +448,7 @@
 
 
 
-    if(class(tmp) != "try-error"){
+    if(!("try-error" %in% class(tmp))){
 
       n.zero.new = n.zero.new + 1
       if(tmp$score.stat.alpha.perm >= score.stat.zero.meta){
@@ -574,7 +575,7 @@
         #
         tmp.zero = try( .Score.test.stat.zero(Y0, Z, Z.par.index, "independence") )
       }
-      if(class(tmp.zero) == "try-error"){
+      if("try-error" %in% class(tmp.zero)){
 
         next
 
@@ -606,12 +607,12 @@
     n.par.save.alpha = length(save.index.zero)
     score.alpha.meta = score.alpha.meta[save.index.zero]
     est.cov.zero.meta = est.cov.zero.meta[save.index.zero,save.index.zero]
+    est.cov.zero.inv = ginv(est.cov.zero.meta)
     if(!is.null(W.zero)){
       W.zero = W.zero[save.index.zero,save.index.zero]
     }
     if (Method == "FE-MV")
     {
-      est.cov.zero.inv = ginv(est.cov.zero.meta)
       score.stat.zero.meta = score.alpha.meta %*% est.cov.zero.inv %*% score.alpha.meta #FE-Burden
       score.pvalue.zero = 1- pchisq(score.stat.zero.meta,df = n.par.save.alpha)
       df.zero = n.par.save.alpha
@@ -638,7 +639,7 @@
     #   zero.results = list(score.stat = score.stat.zero.meta, score.pvalue = score.pvalue.zero, df = df.zero)
     # }
     if (Method == "FE-VC"){
-      est.cov.zero.inv = ginv(est.cov.zero.meta)
+
       weight.cov.zero = eigen(est.cov.zero.inv)$values
       score.stat.zero.meta = score.alpha.meta %*% est.cov.zero.inv %*% est.cov.zero.inv %*% score.alpha.meta #SKAT-VC
       score.pvalue.zero = davies(score.stat.zero.meta, weight.cov.zero, h = rep(1,n.par.save.alpha), delta = rep(0,n.par.save.alpha), sigma = 0, lim = 10000, acc = 0.0001)$Qq
@@ -673,7 +674,7 @@
     if(Method == "Het-SKAT"){
       # W = diag(1,nrow = n.par.interest.alpha)
       score.stat.zero.meta = 0
-      for( i in 1:j ){
+      for( i in 1:n.zero){
         est.inv = ginv(est.cov.zero[[i]])
         tmp  = tcrossprod(crossprod(score.alpha[[i]],est.inv), crossprod(score.alpha[[i]], est.inv))
         score.stat.zero.meta = score.stat.zero.meta + tcrossprod(crossprod(score.alpha[[i]],est.inv), crossprod(score.alpha[[i]], est.inv))
@@ -684,17 +685,17 @@
       a2 = 0
       a3 = 0
       a4 = 0
-      for( i in 1:j ){
+      for( i in 1:n.zero){
         est.inv = ginv(est.cov.zero[[i]])
         U.tau.b = U.tau.b + tcrossprod(crossprod(score.alpha[[i]],est.inv), crossprod(score.alpha[[i]], est.inv))
         a2 = a2 + sum(diag(crossprod(t(est.inv),est.inv)))
         a3 = a3 + sum(diag(crossprod(t(est.inv),est.inv)))
         a4  = a4 + sum(diag(crossprod(t(est.inv),est.inv)))
       }
-      a1 = sum(diag(crossprod(t(est.cov.inv),est.cov.inv)))
-      U.tau.b = 1/2 * U.tau.b + 1/2 * sum(diag(est.cov.inv))
-      U.tau.w = 1/2 * crossprod( score.alpha.meta, crossprod(t(est.cov.inv), crossprod( t(est.cov.inv), score.alpha.meta)))
-      + 1/2 * sum(diag(est.cov.inv)) #SKAT-VC
+      a1 = sum(diag(crossprod(t(est.cov.zero.inv),est.cov.zero.inv)))
+      U.tau.b = 1/2 * U.tau.b + 1/2 * sum(diag(est.cov.zero.inv))
+      U.tau.w = 1/2 * crossprod( score.alpha.meta, crossprod(t(est.cov.zero.inv), crossprod( t(est.cov.zero.inv), score.alpha.meta)))
+      + 1/2 * sum(diag(est.cov.zero.inv)) #SKAT-VC
       score.stat.zero.meta = crossprod(c(U.tau.w, U.tau.b), crossprod(1/2 * matrix(c(a1,a2,a3,a4),ncol = 2), c(U.tau.w, U.tau.b)))
     }
     zero.results = list(score.stat = score.stat.zero.meta, score.pvalue = score.pvalue.zero, df = df.zero)
@@ -753,38 +754,40 @@
   return(zero.results)
 }
 
-#results.two = QCAT_GEE(count.rff, X, 1, X, 1, tax, n.resample=1000, fdr.alpha=0.05)
+
 #' Title
 #'
 #' @param OTU
 #' @param Z
 #' @param Z.index
+#' @param Tax
 #' @param Method
 #' @param min.depth
 #' @param n.perm
-#' @param Tax
 #' @param fdr.alpha
 #'
 #' @return
 #' @export
 #'
 #' @examples
-QCAT_GEE_Meta <- function(OTU, Z, Z.index,  Method = "FE-MV", min.depth=0, n.perm=NULL, Tax=NULL, fdr.alpha=0.05){
+#' @import MASS
+#' @import data.table
+#' @import dplyr
+#' @import CompQuadForm
+#' @import geepack
+#' @importFrom stats coef optim pchisq
+QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.perm=NULL,  fdr.alpha=0.05){
   n.OTU = length(OTU)
   n.resample = n.perm
   # if(length(unique(sapply(1:n.OTU,function(j) ncol(OTU[[j]]))))!= 1){
   #   stop("The taxa in each study should be the same")
   # }
-  if(missing(Z)){
-    Z = X
-  }
-  else{
-    n.Z = length(Z)
-    if(n.OTU!=n.Z)
-    {
-      stop("The study number of OTU table and Covariate table for the
-         zero part should be the same")
-    }
+
+  n.Z = length(Z)
+  if(n.OTU!=n.Z)
+  {
+    stop("The study number of OTU table and Covariate table for the
+       zero part should be the same")
   }
 
   for(i in 1:n.OTU)
@@ -866,7 +869,7 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index,  Method = "FE-MV", min.depth=0, n.per
     for(i in 1:n.OTU)
     {
       if( sum(colnames(count[[i]])!=rownames(tax))>0 ){
-        stop(psate0("Error: OTU IDs in OTU table ",i," are not consistent with OTU IDs in Tax table"))
+        stop(paste0("Error: OTU IDs in OTU table ",i," are not consistent with OTU IDs in Tax table"))
       }
     }
 
@@ -955,7 +958,7 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index,  Method = "FE-MV", min.depth=0, n.per
   subtree.tmp = subtree
   index.na = which(is.na(score.zero.tmp))
   if(length(index.na)>0){
-    score.zero.tmp = score.tmp[-index.na]
+    score.zero.tmp = score.zero.tmp[-index.na]
     subtree.tmp = subtree.tmp[-index.na]
   }
 
