@@ -1,3 +1,4 @@
+# one part model
 
 .F.test <- function(x) {
   # Fisher's p-value combination

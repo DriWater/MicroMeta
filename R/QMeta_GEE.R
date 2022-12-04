@@ -1,8 +1,4 @@
-## Two-Part Model
-library(data.table)
-library(Rcpp)
-library(RcppArmadillo)
-sourceCpp("/Users/shurenhe/Documents/Sim_two_part/code/resample.cpp")
+# Zero part model
 
 .F.test <- function(x){
 
@@ -758,6 +754,21 @@ sourceCpp("/Users/shurenhe/Documents/Sim_two_part/code/resample.cpp")
 }
 
 #results.two = QCAT_GEE(count.rff, X, 1, X, 1, tax, n.resample=1000, fdr.alpha=0.05)
+#' Title
+#'
+#' @param OTU
+#' @param Z
+#' @param Z.index
+#' @param Method
+#' @param min.depth
+#' @param n.perm
+#' @param Tax
+#' @param fdr.alpha
+#'
+#' @return
+#' @export
+#'
+#' @examples
 QCAT_GEE_Meta <- function(OTU, Z, Z.index,  Method = "FE-MV", min.depth=0, n.perm=NULL, Tax=NULL, fdr.alpha=0.05){
   n.OTU = length(OTU)
   n.resample = n.perm
