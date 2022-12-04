@@ -29,6 +29,6 @@ devtools::install_github("DriWater/MicroMeta")
 
 ## To do list:
 
-I plan to finish the code for the zero-part model (QCAT-GEE), make vignette, and move the code relevant to permutation methods like Score.test.stat.perm, Score.test.stat.zero.perm to CPP, complete the roxygen skeleton.
+I plan to make vignette, complete the roxygen skeleton.
 
 ## References:
