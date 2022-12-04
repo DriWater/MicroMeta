@@ -1,7 +1,7 @@
 ---
 output: github_document
-bibliography: ref.bib
-csl: the-lancet.csl
+bibliography: ./man/ref/ref.bib
+csl: ./man/ref/the-lancet.csl
 ---
 
 ```{r, include = FALSE}
