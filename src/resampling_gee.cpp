@@ -62,7 +62,7 @@ Rcpp::List score_test_stat_meta_resampling_c(const Rcpp::List& X_perm_list, cons
     arma::mat B2(n_beta, n_beta);
     B2.zeros();
     for(int j = 0; j < n; j++){
-      B2 += Score_reduce_beta_perm_reorg.row(j).t() * Score_reduce_beta_perm_reorg.row(j) ;
+       B2 += Score_reduce_beta_perm_reorg.row(j).t() * Score_reduce_beta_perm_reorg.row(j) ;
     }
     arma::mat B = B1 * B2 * B1.t();
     arma::mat t = A.t() * arma::pinv(B) * A;
@@ -81,3 +81,4 @@ Rcpp::List score_test_stat_meta_resampling_c(const Rcpp::List& X_perm_list, cons
                             Rcpp::Named("est_cov_meta") = est_cov_meta,
                             Rcpp::Named("est_cov") = est_cov);
 }
+
