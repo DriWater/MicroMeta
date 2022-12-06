@@ -472,6 +472,7 @@
 .Score.test.meta <- function(Y.list, X.list, X.par.index, seed=11, resample=FALSE, n.replicates=NULL, Method = "FE-MV", Weight=NULL ){
   stu.num = length(X.list)
   W = Weight
+  p.par = length(X.par.index)
   m = ncol(Y.list[[1]])
   n = nrow(Y.list[[1]])
   p = ncol(X.list[[1]])
@@ -553,7 +554,7 @@
         I.beta.list.meta = I.beta.list.meta
       }else{
         j = j+1
-        idx = col.index - 1
+        idx = kronecker((col.index-2)*p.par, rep(1,p.par)) + c(1:p.par)
         col.index.list[[j]] = idx
         score.stat.beta = append(score.stat.beta, tmp.one$score.stat.beta)
         score.beta[[j]] = tmp.one$score.beta
@@ -716,8 +717,8 @@
 #' @param fdr.alpha false discovery rate for multiple tests on the lineages.
 #'
 #' @return A list with this elements
-#'    \item{lineage.pval} p-values for all lineages. By default (n.resample=NULL, Method = "FE-MV"), only the asymptotic test will be performed. If (Method = "RE-SKAT" or Method = "Het-SKAT"), only permutation test will be performed.
-#'    \item{sig.lineage} a vector of significant lineages
+#'    \item{lineage.pval}{p-values for all lineages. By default ( Method = "FE-MV", n.perm = NULL ), only the asymptotic test will be performed. If use random effect meta-analysis methods ( Method = "RE-SKAT" or Method = "Het-SKAT" ), then resampling test must be performed.}
+#'    \item{sig.lineage}{a vector of significant lineages.}
 #' @export
 #'
 #' @examples
@@ -726,7 +727,6 @@
 #' Tax = data.meta$Tax
 #' case = data.meta$covariate
 #' QCAT_Meta(OTU, case, 1, Tax, Method = "FE-MV", min.depth=0, n.perm=NULL, fdr.alpha=0.05)
-#' QCAT_Meta(OTU, case, 1, Tax, Method = "Het-SKAT", min.depth=0, n.perm=200, fdr.alpha=0.05)
 #' @import MASS
 #' @import data.table
 #' @import CompQuadForm

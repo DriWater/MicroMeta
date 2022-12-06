@@ -34,6 +34,18 @@ If not provided, one test will be performed with all the OTUs and one p-value wi
 
 \item{fdr.alpha}{false discovery rate for multiple tests on the lineages.}
 }
+\value{
+A list with this elements
+\item{lineage.pval}{p-values for all lineages. By default ( Method = "FE-MV", n.perm = NULL ), only the asymptotic test will be performed. If the meta-analysis method is random effect methods like RE-SKAT or Het-SKAT, then resampling test must be performed.}
+\item{sig.lineage}{a vector of significant lineages.}
+}
 \description{
 Title
+}
+\examples{
+data(data.meta)
+OTU = data.meta$OTU
+Tax = data.meta$Tax
+case = data.meta$covariate
+QCAT_GEE_Meta(OTU, case, 1, Tax, Method = "FE-MV", min.depth=0, n.perm=NULL, fdr.alpha=0.05)
 }

@@ -5,7 +5,7 @@ using namespace Rcpp;
 arma::vec colSums_c(arma::mat tmp){
   int cols = tmp.n_cols;
   arma::vec res(cols, arma::fill::none);
-  for (size_t i = 0; i< cols; i++){
+  for (int i = 0; i< cols; i++){
     res(i) = sum(tmp.col(i));
   }
   return (res);
@@ -132,7 +132,7 @@ Rcpp::List score_test_stat_zero_meta_resampling_c(const Rcpp::List& Z_perm_list,
     arma::colvec A = colSums_c(Score_reduce_alpha_perm_reorg)(idx);
     arma::mat tmp4(n_par_alpha_interest, n_par_alpha_interest);
     tmp4.eye();
-    arma::mat B1 = arma::join_rows(tmp4,-Hess_reduce_alpha_perm_reorg(arma::span(0,(n_par_alpha_interest-1)),arma::span(0,(n_par_alpha_interest-1))) *
+    arma::mat B1 = arma::join_rows(tmp4,-Hess_reduce_alpha_perm_reorg(arma::span(0,(n_par_alpha_interest-1)),arma::span(n_par_alpha_interest,(n_alpha-1))) *
       arma::pinv(Hess_reduce_alpha_perm_reorg(arma::span(n_par_alpha_interest,(n_alpha-1)),arma::span(n_par_alpha_interest,(n_alpha-1)))));
     arma::mat B2(n_alpha, n_alpha);
     B2.zeros();

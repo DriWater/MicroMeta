@@ -493,6 +493,7 @@
 .Score.test.zero.meta <- function(Y.list, Z.list, Z.par.index, seed=11, resample=FALSE, n.replicates=NULL, Method = "FE-MV", Weight.zero=NULL){
   iter.num = length(Z.list)
   W.zero = Weight.zero
+  p.par = length(Z.par.index)
   m = ncol(Y.list[[1]])
   n = nrow(Y.list[[1]])
   p.zero = ncol(Z.list[[1]])
@@ -583,7 +584,7 @@
         n.zero = n.zero + 1
         # par.index.pos.list[[n.pos]] = kronecker(((0:(m-2))*p), rep(1,length(X1.par.index))) + X1.par.index
         #par.index.zero.list[[n.zero]] = kronecker((col.zero.index - 1)*p.zero, rep(1,length(Z.par.index))) + Z.par.index
-        idx = col.zero.index
+        idx = kronecker((col.zero.index-1)*p.par, rep(1,p.par)) + c(1:p.par)
         col.zero.index.list[[n.zero]] = idx
         score.stat.alpha = append(score.stat.alpha, tmp.zero$score.stat.alpha)
         score.alpha[[n.zero]] = tmp.zero$score.alpha
@@ -760,7 +761,9 @@
 #' @param Z a list of matrices contains covariates for the zero-part test with each column pertains to one variable (pertains to the covariate of interest or the confounders). The number of elements of Z and OTU must be the same. The column number of each matrix in this list must be the same.
 #' @param Z.index a vector indicate the columns in X for the covariate(s) of interest.
 #'
-#' @return
+#' @return A list with this elements
+#'    \item{lineage.pval}{p-values for all lineages. By default ( Method = "FE-MV", n.perm = NULL ), only the asymptotic test will be performed. If the meta-analysis method is random effect methods like RE-SKAT or Het-SKAT, then resampling test must be performed.}
+#'    \item{sig.lineage}{a vector of significant lineages.}
 #' @export
 #'
 #' @examples
@@ -769,7 +772,6 @@
 #' Tax = data.meta$Tax
 #' case = data.meta$covariate
 #' QCAT_GEE_Meta(OTU, case, 1, Tax, Method = "FE-MV", min.depth=0, n.perm=NULL, fdr.alpha=0.05)
-#' QCAT_GEE_Meta(OTU, case, 1, Tax, Method = "Het-SKAT", min.depth=0, n.perm=200, fdr.alpha=0.05)
 #' @import MASS
 #' @import data.table
 #' @import CompQuadForm
