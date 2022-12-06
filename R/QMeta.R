@@ -715,10 +715,18 @@
 #' @param n.perm perform asymptotic test is n.resample is null, other perform resampling tests using the specified number of resamplings.
 #' @param fdr.alpha false discovery rate for multiple tests on the lineages.
 #'
-#' @return
+#' @return A list with this elements
+#'    \item{lineage.pval} p-values for all lineages. By default (n.resample=NULL, Method = "FE-MV"), only the asymptotic test will be performed. If (Method = "RE-SKAT" or Method = "Het-SKAT"), only permutation test will be performed.
+#'    \item{sig.lineage} a vector of significant lineages
 #' @export
 #'
 #' @examples
+#' data(data.meta)
+#' OTU = data.meta$OTU
+#' Tax = data.meta$Tax
+#' case = data.meta$covariate
+#' QCAT_Meta(OTU, case, 1, Tax, Method = "FE-MV", min.depth=0, n.perm=NULL, fdr.alpha=0.05)
+#' QCAT_Meta(OTU, case, 1, Tax, Method = "Het-SKAT", min.depth=0, n.perm=200, fdr.alpha=0.05)
 #' @import MASS
 #' @import data.table
 #' @import CompQuadForm

@@ -764,6 +764,12 @@
 #' @export
 #'
 #' @examples
+#' data(data.meta)
+#' OTU = data.meta$OTU
+#' Tax = data.meta$Tax
+#' case = data.meta$covariate
+#' QCAT_GEE_Meta(OTU, case, 1, Tax, Method = "FE-MV", min.depth=0, n.perm=NULL, fdr.alpha=0.05)
+#' QCAT_GEE_Meta(OTU, case, 1, Tax, Method = "Het-SKAT", min.depth=0, n.perm=200, fdr.alpha=0.05)
 #' @import MASS
 #' @import data.table
 #' @import CompQuadForm
