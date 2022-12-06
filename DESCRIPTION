@@ -20,6 +20,13 @@ LinkingTo:
     Rcpp,
     RcppArmadillo
 Suggests: 
+    data.tree,
+    ggplot2,
+    ggtree,
     knitr,
-    rmarkdown
+    rmarkdown,
+    stringr
 VignetteBuilder: knitr
+Depends: 
+    R (>= 2.10)
+LazyData: true
