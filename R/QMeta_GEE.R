@@ -756,15 +756,9 @@
 
 
 #' Title
-#'
-#' @param OTU
-#' @param Z
-#' @param Z.index
-#' @param Tax
-#' @param Method
-#' @param min.depth
-#' @param n.perm
-#' @param fdr.alpha
+#' @inheritParams QCAT_Meta
+#' @param Z a list of matrices contains covariates for the zero-part test with each column pertains to one variable (pertains to the covariate of interest or the confounders). The number of elements of Z and OTU must be the same. The column number of each matrix in this list must be the same.
+#' @param Z.index a vector indicate the columns in X for the covariate(s) of interest.
 #'
 #' @return
 #' @export
@@ -772,10 +766,10 @@
 #' @examples
 #' @import MASS
 #' @import data.table
-#' @import dplyr
 #' @import CompQuadForm
 #' @import geepack
 #' @importFrom stats coef optim pchisq
+#' @importFrom dplyr bind_rows
 QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.perm=NULL,  fdr.alpha=0.05){
   n.OTU = length(OTU)
   n.resample = n.perm
@@ -928,8 +922,14 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth
             pval.zero = cbind(pval.zero, tmp$score.pvalue)
           }
           else{
-            tmp = .Score.test.zero.meta(Y, Z, Z.index, seed=11, resample=TRUE, n.replicates=n.resample, Method = Method)
-            pval.zero = cbind(pval.zero, c(tmp$score.pvalue, tmp$score.Rpvalue) )
+
+            if(Method %in% c("RE-SKAT", "Het-SKAT")){
+              tmp = .Score.test.zero.meta(Y, Z, Z.index, seed=11, resample=TRUE, n.replicates=n.resample, Method = Method)
+              pval.zero = cbind(pval.zero, tmp$score.Rpvalue)
+            }else{
+              tmp = .Score.test.zero.meta(Y, Z, Z.index, seed=11, resample=TRUE, n.replicates=n.resample, Method = Method)
+              pval.zero = cbind(pval.zero, c(tmp$score.pvalue, tmp$score.Rpvalue) )
+            }
           }
 
         }
@@ -948,10 +948,13 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth
     score.zero.tmp = pval.zero[1,]
 
   }else{
-
-    rownames(pval.zero) = c(paste0("Asymptotic-",Method),paste0("Resampling-",Method))
-    score.zero.tmp = pval.zero[2,]
-
+    if(Method %in% c("RE-SKAT", "Het-SKAT")){
+      rownames(pval.zero) = paste0("Resampling-",Method)
+      score.zero.tmp = pval.zero[1,]
+    }else{
+      rownames(pval.zero) = c(paste0("Asymptotic-",Method),paste0("Resampling-",Method))
+      score.zero.tmp = pval.zero[2,]
+    }
   }
   # identify significant lineages
 

@@ -704,14 +704,16 @@
 
 #' Title
 #'
-#' @param OTU
-#' @param X
-#' @param X.index
-#' @param Tax
-#' @param Method
-#' @param min.depth
-#' @param n.perm
-#' @param fdr.alpha
+#' @param OTU a list of matrices contains counts with each row corresponds to a sample and each column corresponds to an OTU or a taxa. Each matrices' taxas are better to the same. Column name is mandatory.
+#' @param X a list of matrices contains covariates for the positive-part test with each column pertains to one variable (pertains to the covariate of interest or the confounders). The number of elements of of X and OTU must be the same. The column number of each matrix in this list must be the same.
+#' @param X.index a vector indicate the columns in X for the covariate(s) of interest.
+#' @param Tax a matrix define the taxonomy ranks with each row corresponds to an OTU or a taxa and each column corresponds to a rank (start from the higher taxonomic level). Row name is mandatory and should be consistent with the column name of the OTU table,  Column name should be formated as "Rank1", "Rank2 ()"... etc
+#'        If provided, tests will be performed for lineages based on the taxonomic rank. The output contains P-values for all lineages; a list of significant lineages controlling the false discovery rate (based on resampling p-value if resampling test was performed); p-values of the global tests (Fisher- and Simes-combined the p-values for testing lineages).
+#'        If not provided, one test will be performed with all the OTUs and one p-value will be output.
+#' @param Method The meta-analysis method to be used. Including fixed effect methods such as FE-MV test and FE-VC test and random effect methods like Het-SKAT and RE-SKAT test.
+#' @param min.depth keep samples with depths >= min.depth.
+#' @param n.perm perform asymptotic test is n.resample is null, other perform resampling tests using the specified number of resamplings.
+#' @param fdr.alpha false discovery rate for multiple tests on the lineages.
 #'
 #' @return
 #' @export
@@ -719,10 +721,11 @@
 #' @examples
 #' @import MASS
 #' @import data.table
-#' @import dplyr
 #' @import CompQuadForm
 #' @import geepack
 #' @importFrom stats coef optim pchisq
+#' @importFrom dplyr bind_rows
+
 QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.perm=NULL, fdr.alpha=0.05){
   n.resample = n.perm
   n.OTU = length(OTU)
@@ -879,9 +882,13 @@ QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, 
           }
           else{
             # (Y.list, X.list, X.par.index, seed=11, resample=FALSE, n.replicates=NULL, Method = "FE-MV", Weight=NULL )
-            tmp = .Score.test.meta(Y, X, X.index, resample=TRUE, n.replicates=n.resample, Method = Method)
-            pval = cbind(pval, c(tmp$score.pvalue, tmp$score.Rpvalue) )
-
+            if(Method %in% c("RE-SKAT", "Het-SKAT")){
+              tmp = .Score.test.meta(Y, X, X.index, resample=TRUE, n.replicates=n.resample, Method = Method)
+              pval = cbind(pval, c(tmp$score.Rpvalue))
+            }else{
+              tmp = .Score.test.meta(Y, X, X.index, resample=TRUE, n.replicates=n.resample, Method = Method)
+              pval = cbind(pval, c(tmp$score.pvalue, tmp$score.Rpvalue) )
+            }
           }
 
         }
@@ -898,8 +905,13 @@ QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, 
     rownames(pval) = paste0("Asymptotic-",Method)
     score.tmp = pval[1,]
   }else{
-    rownames(pval) = c(paste0("Asymptotic-",Method),paste0("Resampling-",Method))
-    score.tmp = pval[2,]
+    if(Method %in% c("RE-SKAT", "Het-SKAT")){
+      rownames(pval) = paste0("Resampling-",Method)
+      score.tmp = pval[1,]
+    }else{
+      rownames(pval) = c(paste0("Asymptotic-",Method),paste0("Resampling-",Method))
+      score.tmp = pval[2,]
+    }
     #print(pval)
   }
 
