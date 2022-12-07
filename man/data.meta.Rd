@@ -7,7 +7,7 @@
 \format{
 A list with 3 elements
 \describe{
-\item{OTU}{a list contains 5 OTU counts}
+\item{OTU}{a list contains OTU counts from five different studies}
 \item{Tax}{a matrix of taxonomy table from Rank1 (kingdom level) to Rank6 (genus level)}
 \item{covariate}{covariates of interest}
 }

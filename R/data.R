@@ -1,4 +1,4 @@
-#' The data are derived from several real gut microbiome studies.
+#' The data are derived from five real gut microbiome studies of colon cancer.
 #' @format A list with 3 elements
 #' \describe{
 #'    \item{OTU}{a list contains OTU counts from five different studies}
@@ -14,24 +14,24 @@
 #' @format A 574 x 133 Matrix
 #' \describe{
 #'    \item{rownames}{sample id}
-#'    \item{colnames}{ generic name for each taxa conut }
+#'    \item{colnames}{generic name for each taxa conut }
 #' }
 "count.genus"
 
 #' Subject-level data for 574 observations.
 #'
-#' A dataset containing subject-level variables pooled from five studies of colon cancer status
+#' A dataset containing subject-level variables pooled from five gut microbiome studies of colon cancer.
 #'
 #' @format A dataframe
 #' \describe{
-#'    \item{Sample id}{Sample id for each observation}
-#'    \item{External id}
+#'    \item{Sample_id}{Sample id for each observation}
+#'    \item{External_id}{External_id}
 #'    \item{Age}{Age for each observation}
 #'    \item{Gender}{Gender, F or M}
 #'    \item{BMI}{BMI for each observation}
-#'    \item{...}
+#'     ...
 #'    \item{Group}{Denote each group belongs to case or control group}
-#'    \item{...}
+#'     ...
 #' }
 "meta"
 
@@ -48,6 +48,6 @@
 #'    \item{order}{the scientific name for the order that the taxa belongs}
 #'    \item{family}{the scientific name for the family that the taxa belongs}
 #'    \item{genus}{generic name for each taxa conut}
-#'    \item{mOTU}
+#'    \item{mOTU}{mOTU}
 #' }
 "tax"
