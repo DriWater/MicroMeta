@@ -749,22 +749,20 @@ QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, 
   for(i in 1:n.OTU)
   {
     if(!is.matrix(OTU[[i]])){
-      warning(paste0("OTU table of study ", i, " is not a matrix"))
       OTU[[i]] = as.matrix(OTU[[i]])
     }
 
     if(!is.matrix(X[[i]])){
-      warning(paste0("Covariate table of study ", i, " is not a matrix"))
       X[[i]] = as.matrix(X[[i]])
     }
 
     if(nrow(OTU[[i]])!=nrow(X[[i]])){
       stop(paste0("Samples in the OTU table and the covariate table of study ", i,
-                  " should be the same"))
+                  " should be the same\n"))
     }
     remove.subject = which(rowSums(OTU[[i]])<min.depth)
     if(length(remove.subject)>0){
-      print(paste("Remove",length(remove.subject), "samples with read depth less than", min.depth, "in OTU table", i))
+      print(paste("Remove",length(remove.subject), "samples with read depth less than", min.depth, "in OTU table", i,"\n"))
       X[[i]] = X[[i]][-remove.subject, ,drop=FALSE]
       OTU[[i]] = OTU[[i]][-remove.subject, ,drop=FALSE]
     }
@@ -803,14 +801,18 @@ QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, 
     }else{ # resampling test + asymptotic test
       # (Y.list, X.list, X.par.index, seed=11, resample=FALSE, n.replicates=NULL, Method = "FE-MV", Weight=NULL )
       tmp = .Score.test.meta(count, X, X.index, resample=TRUE, n.replicates=n.resample, Method = Method)
-      pval = c(tmp$score.pvalue, tmp$score.Rpvalue)
-      names(pval) = c(paste0("Asymptotic-",Method), paste0("Resampling-",Method))
+      if(Method %in% c("RE-SKAT", "Het-SKAT")){
+        pval = c(tmp$score.Rpvalue)
+        names(pval) = paste0("Resampling-",Method)
+      }else{
+        pval = c(tmp$score.pvalue, tmp$score.Rpvalue)
+        names(pval) = c(paste0("Asymptotic-",Method),paste0("Resampling-",Method))
+      }
     }
     return( list(pval=pval) )
   }else{ # perform tests for lineages
 
     if(!is.matrix(Tax)){
-      warning("Tax table is not a matrix")
       tax = as.matrix(Tax)
     }
 

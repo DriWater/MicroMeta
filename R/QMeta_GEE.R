@@ -795,13 +795,11 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth
   for(i in 1:n.OTU)
   {
     if(!is.matrix(OTU[[i]])){
-      warning(paste0("OTU table of study ", i, " is not a matrix"))
       OTU[[i]] = as.matrix(OTU[[i]])
     }
 
     if(!is.matrix(Z[[i]])){
-      warning(paste0("Covariate table for zero part of study ", i, " is not a matrix"))
-      Z[[i]] = as.matrix(Z[[i]])
+    Z[[i]] = as.matrix(Z[[i]])
     }
 
     if(nrow(OTU[[i]])!=nrow(Z[[i]])){
@@ -857,14 +855,18 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth
       colnames(pval.zero) = paste0("Asymptotic-",Method)
     }else{
       tmp = .Score.test.zero.meta(count, Z, Z.index, seed=11, resample=TRUE, n.replicates=NULL, Method = Method)
-      pval.zero = c(tmp$score.pvalue, tmp$score.Rpvalue)
-      names(pval.zero) = c(paste0("Asymptotic-",Method), paste0("Resampling-",Method))
+      if(Method %in% c("RE-SKAT", "Het-SKAT")){
+        pval.zero = c(tmp$score.Rpvalue)
+        names(pval.zero) = paste0("Resampling-",Method)
+      }else{
+        pval.zero = c(tmp$score.pvalue, tmp$score.Rpvalue)
+        names(pval.zero) = c(paste0("Asymptotic-",Method),paste0("Resampling-",Method))
+      }
     }
     return(pval.zero)
   }else{ # perform tests for lineages
 
     if(!is.matrix(Tax)){
-      warning("Tax table is not a matrix")
       tax = as.matrix(Tax)
     }
 
