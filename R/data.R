@@ -1,9 +1,53 @@
 #' The data are derived from several real gut microbiome studies.
 #' @format A list with 3 elements
 #' \describe{
-#'    \item{OTU}{a list contains 5 OTU counts}
+#'    \item{OTU}{a list contains OTU counts from five different studies}
 #'    \item{Tax}{a matrix of taxonomy table from Rank1 (kingdom level) to Rank6 (genus level)}
 #'    \item{covariate}{covariates of interest}
 #' }
 "data.meta"
 
+#' Genus-level taxa count data for 574 observations.
+#'
+#' A dataset containing genus-level count data pooled from five studies
+#'
+#' @format A 574 x 133 Matrix
+#' \describe{
+#'    \item{rownames}{sample id}
+#'    \item{colnames}{ generic name for each taxa conut }
+#' }
+"count.genus"
+
+#' Subject-level data for 574 observations.
+#'
+#' A dataset containing subject-level variables pooled from five studies of colon cancer status
+#'
+#' @format A dataframe
+#' \describe{
+#'    \item{Sample id}{Sample id for each observation}
+#'    \item{External id}
+#'    \item{Age}{Age for each observation}
+#'    \item{Gender}{Gender, F or M}
+#'    \item{BMI}{BMI for each observation}
+#'    \item{...}
+#'    \item{Group}{Denote each group belongs to case or control group}
+#'    \item{...}
+#' }
+"meta"
+
+#' Taxonomy table
+#'
+#' Taxonomy ranks for the taxa counts in count.genus data
+#'
+#' @format A dataframe
+#' \describe{
+#'    \item{OTUID}{id}
+#'    \item{kingdom}{the scientific name for the kingdom that the taxa belongs}
+#'    \item{phylum}{the scientific name for the phylum that the taxa belongs}
+#'    \item{class}{the scientific name for the class that the taxa belongs}
+#'    \item{order}{the scientific name for the order that the taxa belongs}
+#'    \item{family}{the scientific name for the family that the taxa belongs}
+#'    \item{genus}{generic name for each taxa conut}
+#'    \item{mOTU}
+#' }
+"tax"
