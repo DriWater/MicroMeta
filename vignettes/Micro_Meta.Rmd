@@ -149,7 +149,7 @@ print(one_part_VC$sig.lineage)
 
 #### Visualization
 
-```{r fig.width= 2, fig.height= 2, fig.align='center'}
+```{r fig.width= 6, fig.height= 6, fig.align='center'}
 p <- ggtree(tree.vis, layout='circular') +
   geom_hilight(node=137, fill="yellow", alpha= 0.6) +
   geom_hilight(node=237, fill="steelblue", alpha= 0.2) +
@@ -178,7 +178,7 @@ print(one_part_Het$sig.lineage)
 
 #### Visualization
 
-```{r fig.width= 2, fig.height= 2, fig.align='center'}
+```{r fig.width= 6, fig.height= 6, fig.align='center'}
 p <- ggtree(tree.vis, layout='circular') +
   geom_hilight(node=174, fill="darkgreen", alpha= 0.6) +
   geom_hilight(node=154, fill="darkgreen", alpha= 0.6) +
@@ -247,7 +247,7 @@ RE_sig_lineage <- unlist(lapply(1:length(RE_sig_lineage),function(X){tip_num+whi
 print(zero_part_RE$sig.lineage) 
 ```
 
-```{r fig.width= 2, fig.height= 2, fig.align='center'}
+```{r fig.width= 6, fig.height= 6, fig.align='center'}
 p <- ggtree(tree.vis, layout='circular') +
   geom_hilight(node=151, fill="steelblue", alpha= 0.6) +
   geom_hilight(node=174, fill="steelblue", alpha= 0.6) +
