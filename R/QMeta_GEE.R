@@ -542,6 +542,7 @@
   }else{
 
     score.pvalue.zero = NA
+    score.stat.zero.meta = NA
     df.zero = NA
     score.stat.alpha = NULL
     score.pvalue.alpha = NULL

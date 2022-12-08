@@ -516,6 +516,7 @@
     score.beta = NULL
     score.pvalue.beta = NULL
     score.pvalue = NA
+    score.stat.meta = NA
     df = NA
     est.cov = list()
     S.beta.list.meta = list()
