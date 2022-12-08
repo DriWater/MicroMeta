@@ -823,7 +823,7 @@ QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, 
     # }
     for(i in 1:n.OTU)
     {
-      if( sum(colnames(count[[i]])!=rownames(tax))>0 ){
+      if( sum(!(colnames(count[[i]]) %in% rownames(tax)))>0 ){
         stop(paste0("Error: OTU IDs in OTU table ",i," are not consistent with OTU IDs in Tax table"))
       }
     }

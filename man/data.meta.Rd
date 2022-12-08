@@ -3,7 +3,7 @@
 \docType{data}
 \name{data.meta}
 \alias{data.meta}
-\title{The data are derived from several real gut microbiome studies.}
+\title{The data are derived from five real gut microbiome studies of colon cancer.}
 \format{
 A list with 3 elements
 \describe{
@@ -16,6 +16,6 @@ A list with 3 elements
 data.meta
 }
 \description{
-The data are derived from several real gut microbiome studies.
+The data are derived from five real gut microbiome studies of colon cancer.
 }
 \keyword{datasets}

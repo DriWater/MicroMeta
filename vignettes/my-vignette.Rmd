@@ -7,13 +7,276 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-```{r, include = FALSE}
-knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>"
-)
+## If you have not installed ggtree, please run this chuck of code 
+```{r, eval = F}
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("ggtree")
 ```
 
+## Library packages
 ```{r setup}
 library(MicroMeta)
+library(dplyr)
+library(data.tree)
+library(ape)
+library(ggtree)
+library(ggplot2)
+library(stringr)
+library(HMP)
+library(MASS)
+library(geepack)
+library(CompQuadForm)
+```
+
+## Load required data
+```{r}
+data(meta)
+data(count.genus)
+data(tax)
+```
+
+## Data Process
+```{r}
+## Split the OTU count table into five studies according to their row names
+sample.id <- rownames(count.genus)
+sample.id <- str_extract(sample.id,'^[A-Z]+')
+sample.category <- unique(sample.id)
+
+
+## For each matrix in the list, its columns names must be the scientific name of the genus (genus level)
+
+otu.tab.lst <- split.data.frame(count.genus, sample.id)
+
+rename.mat <- function(x,col,names){
+  a <- matrix(x,ncol=col,byrow = F)
+  colnames(a) = names
+  return(a)
+}
+
+otu.tab.lst <- lapply(otu.tab.lst, rename.mat, col = ncol(count.genus), names=colnames(count.genus))
+
+## Remove the genus that has more than 90% zero observations
+
+## Find the column indexes for each otu.table which has more than 90% zero observations
+.Remove.ind <- function(otu.tab.lst, ratio){
+  n = length(otu.tab.lst)
+  rev.ind.lst = NULL
+  for(i in 1:n)
+  {
+    Y <- otu.tab.lst[[i]]
+    Y0 = Y
+    Y0[Y>0] = 0
+    Y0[Y==0] = 1
+    rev.ind.lst[[i]] <-which(colSums(Y0)/nrow(Y0)>ratio)
+  }
+  return (rev.ind.lst)
+}
+
+remove.index.lst  <- .Remove.ind(otu.tab.lst, 0.9)
+
+## Remove the indexes for each otu.table
+
+.Remove.col  <- function(otu.tab.lst,rev.ind.lst){
+  if(length(rev.ind.lst) !=  length(otu.tab.lst))
+  {
+    stop("the number of elements of otu table list and remove index list should be the same")
+  }
+  else
+  {
+    n = length(otu.tab.lst)
+    for(i in 1:n){
+      rev.ind = rev.ind.lst[[i]]
+      if(length(rev.ind) == 0){
+        next
+      }
+      otu.tab.lst[[i]] = otu.tab.lst[[i]][ ,-rev.ind, drop = FALSE]
+    }
+  }
+  return(otu.tab.lst)
+}
+
+otu.tab.lst  <- .Remove.col(otu.tab.lst,remove.index.lst)
+
+
+## Rename the colums for Tax 
+## Kingdom -> Rank1, Phylum -> Rank5, Class -> Rank4, ..., Genus -> Rank1
+Tax <- tax[2:7]
+Tax <- Tax[!duplicated(Tax$genus),]
+colnames(Tax) <- paste("Rank",c(1:ncol(Tax)),sep="")
+
+## The row names for the Tax should be the same as the column names of original OTU table (count.gene)
+rownames(Tax) <- Tax$Rank6
+
+## Construct the  covariate of  interest (Case group:1; Control Group: 0). Can add more covariate of interest like age, gender, etc. 
+X <- rep(1,nrow(count.genus))
+X[meta$Group == 'CTR'] <- 0
+X <- split(X,sample.id)
+X.index = 1
+```
+
+#### Tranform the Tax data into tree format
+```{r}
+Tax.df <- as.data.frame(Tax) #Tax is the taxonomy table
+Tax.df$pathString <- paste(Tax.df$Rank1, Tax.df$Rank2, Tax.df$Rank3, Tax.df$Rank4, Tax.df$Rank5, Tax.df$Rank6, sep = "|") # taxonomic rank
+Tax.tree <- as.Node(Tax.df, pathDelimiter = "|")
+tree.node.name <- Tax.tree$Get("name", traversal = "level")
+# tree.node.pval <- rep(NA, length(tree.node.name))
+# names(tree.node.pval) <- tree.node.name
+# tree.node.pval[colnames(one_part_VC$lineage.pval)] <- unname(one_part_VC$lineage.pval)
+# tree.node.pval[!names(tree.node.pval)%in%colnames(one_part_VC$lineage.pval)] <- 1
+# Tax.tree$Set(rawp = tree.node.pval, traversal = "level")
+tree.vis <- as.phylo(Tax.tree)
+```
+
+## QCAT Model 
+
+#### Fixed-effect Meta-analysis Method (Asymptotitc)
+```{r}
+## Asymptotic p-value
+Method = "FE-VC"
+one_part_VC <- QCAT_Meta(otu.tab.lst, X , 1, Tax = Tax, Method = Method, n.perm = NULL)
+VC_sig_lineage <- one_part_VC$sig.lineage
+VC_sig_lineage <- str_replace_all(VC_sig_lineage," ", "_")
+#VC_sig_lineage <- VC_sig_lineage[VC_sig_lineage != "2_Bacteria"]
+tip_num = length(tree.vis$tip.label)
+
+# the index of the significant lineage
+VC_sig_lineage <- unlist(lapply(1:length(VC_sig_lineage),function(X){tip_num+which(tree.vis$node.label == VC_sig_lineage[X])}))
+print(one_part_VC$sig.lineage) 
+```
+
+#### Visualization
+
+```{r fig.width= 2, fig.height= 2, fig.align='center'}
+p <- ggtree(tree.vis, layout='circular') +
+  geom_hilight(node=137, fill="yellow", alpha= 0.6) +
+  geom_hilight(node=237, fill="steelblue", alpha= 0.2) +
+  geom_cladelab(node=137, label="Lactobacillales", align=TRUE,  angle=-55,
+                offset = 2.0, textcolor='black', barcolor='black', hjust= 0.5, vjust = 1, fontsize=2) +
+  geom_cladelab(node=237, label="Euryarchaeota", align=TRUE,  angle=-65,
+                offset = 2.0, textcolor='black', barcolor='black', hjust= 0.5, vjust = -0.5 , fontsize=4) +
+  geom_point2(aes(subset=(node %in% VC_sig_lineage)),shape=21,  size=3, fill='red')
+
+p + ggtitle("Significant lineage for FE-VC test (Asympotitc p-value)")
+```
+
+#### Random-effect Meta-analysis Method (Permutation)
+```{r}
+## Asymptotic p-value
+Method = "Het-SKAT"
+one_part_Het <- QCAT_Meta(otu.tab.lst, X , 1, Tax = Tax, Method = Method, n.perm = 300)
+Het_sig_lineage <- one_part_Het$sig.lineage
+Het_sig_lineage <- str_replace_all(Het_sig_lineage," ", "_")
+#Het_sig_lineage <- Het_sig_lineage[Het_sig_lineage != "2_Bacteria"]
+
+# the index of the significant lineage
+Het_sig_lineage <- unlist(lapply(1:length(Het_sig_lineage),function(X){tip_num+which(tree.vis$node.label == Het_sig_lineage[X])}))
+print(one_part_Het$sig.lineage) 
+```
+
+#### Visualization
+
+```{r fig.width= 2, fig.height= 2, fig.align='center'}
+p <- ggtree(tree.vis, layout='circular') +
+  geom_hilight(node=174, fill="darkgreen", alpha= 0.6) +
+  geom_hilight(node=154, fill="darkgreen", alpha= 0.6) +
+  geom_cladelab(node=174, label="Peptoniphilaceae", align=TRUE,  angle=85,
+                offset = 2.0, textcolor='black', barcolor='black', hjust= 0.5, vjust = -0.5, fontsize=2) +
+  geom_cladelab(node=154, label="Peptostreptococcaceae", align=TRUE,  angle=15,
+                offset = 2.0, textcolor='black', barcolor='black', hjust= 0.5, vjust = 1, fontsize=2) +
+  geom_point2(aes(subset=(node %in% Het_sig_lineage)),shape=21,  size=3, fill='red')
+
+p + ggtitle("Significant lineage for Het-SKAT test (Permutation p-value)")
+```
+## QCAT_GEE Model 
+
+## Rarefy the data
+
+```{r}
+## Rarefy
+
+Rarefy <- function (otu.tab, depth = min(rowSums(otu.tab))){
+  # Rarefaction function: downsample to equal depth
+  #	
+  # Args:
+  #		otu.tab: OTU count table, row - n sample, column - q OTU
+  #		depth: required sequencing depth 
+  #
+  # Returns:
+  # 	otu.tab.rff: Rarefied OTU table
+  #		discard: labels of discarded samples
+  #
+  otu.tab <- as.matrix(otu.tab)
+  ind <- (rowSums(otu.tab) < depth)
+  sam.discard <- rownames(otu.tab)[ind]
+  otu.tab <- otu.tab[!ind, ]
+  
+  rarefy <- function(x, depth){
+    y <- sample(rep(1:length(x), x), depth)
+    y.tab <- table(y)
+    z <- numeric(length(x))
+    z[as.numeric(names(y.tab))] <- y.tab
+    z
+  }
+  otu.tab.rff <- t(apply(otu.tab, 1, rarefy, depth))
+  rownames(otu.tab.rff) <- rownames(otu.tab)
+  colnames(otu.tab.rff) <- colnames(otu.tab)
+  return(list(otu.tab.rff=otu.tab.rff, discard=sam.discard))
+}
+
+otu.tab.lst <- lapply(otu.tab.lst,function(X){Rarefy(X)$otu.tab.rff})
+
+
+```
+
+#### Random-effect Meta-analysis Method (Asymptotitc)
+
+```{r}
+## Permutation p-value
+Method = "RE-SKAT"
+zero_part_RE <- QCAT_GEE_Meta(otu.tab.lst, X , 1, Tax = Tax, Method = Method, n.perm = 300)
+RE_sig_lineage <- zero_part_RE$sig.lineage
+RE_sig_lineage <- str_replace_all(RE_sig_lineage," ", "_")
+#RE_sig_lineage <- RE_sig_lineage[RE_sig_lineage != "2_Bacteria"]
+tip_num = length(tree.vis$tip.label)
+
+# the index of the significant lineage
+RE_sig_lineage <- unlist(lapply(1:length(RE_sig_lineage),function(X){tip_num+which(tree.vis$node.label == RE_sig_lineage[X])}))
+print(zero_part_RE$sig.lineage) 
+```
+
+```{r fig.width= 2, fig.height= 2, fig.align='center'}
+p <- ggtree(tree.vis, layout='circular') +
+  geom_hilight(node=151, fill="steelblue", alpha= 0.6) +
+  geom_hilight(node=174, fill="steelblue", alpha= 0.6) +
+  geom_hilight(node=216, fill="yellow", alpha= 0.6) +
+  geom_hilight(node=154, fill="yellow", alpha= 0.6) +
+  geom_hilight(node=213, fill="darkgreen", alpha= 0.6) +
+  geom_hilight(node=190, fill="darkgreen", alpha= 0.6) +
+  geom_hilight(node=136, fill="steelblue", alpha= 0.3, type="rect") +
+  geom_hilight(node=135, fill="steelblue", alpha= 0.2, type="rect") +
+  geom_hilight(node=237, fill="steelblue", alpha= 0.2) +
+  geom_cladelab(node=151, label="Erysipelotrichaceae", align=TRUE,  angle=-25,
+                offset = 2.0, textcolor='black', barcolor='black', hjust= 0.5, vjust = 0.75 , fontsize=2)+
+  geom_cladelab(node=174, label="Peptoniphilaceae", align=TRUE,  angle=0,
+                offset = 2.0, textcolor='black', barcolor='black', hjust= 0.5, vjust = 0.75 , fontsize=2)+
+  geom_cladelab(node=216, label="Porphyromonadaceae", align=TRUE,  angle=20,
+                offset = 2.0, textcolor='black', barcolor='black', hjust= 0.5, vjust = -0.5 , fontsize=2) +
+  geom_cladelab(node=154, label="Peptostreptococcaceae", align=TRUE,  angle=15,
+                offset = 2.0, textcolor='black', barcolor='black', hjust= 0.5, vjust = 1, fontsize=2) +
+  geom_cladelab(node=213, label="Bacteroidaceae", align=TRUE,  angle=5,
+                offset = 9.0, textcolor='black', barcolor='black', hjust= 0.5, vjust = 0, fontsize=2) +
+  geom_cladelab(node=190, label="Sutterellaceae", align=TRUE,  angle=45,
+                offset = 9.0, textcolor='black', barcolor='black', hjust= 0.5, vjust = 0, fontsize=2) +
+  geom_cladelab(node=136, label="Bacilli", align=TRUE,  angle= -60,
+                offset = 9.0, textcolor='black', barcolor='black', vjust = 1, hjust = 0.5, fontsize=5) +
+  geom_cladelab(node=135, label="Firmicutes", align=TRUE,
+                offset = 15.0, textcolor='black', barcolor='black', vjust=2.0, fontsize=6) +
+  geom_cladelab(node=237, label="Euryarchaeota", align=TRUE,  angle=-65,
+                offset = 2.0, textcolor='black', barcolor='black', hjust= 0.5, vjust = -0.5 , fontsize=4) +
+  geom_point2(aes(subset=(node %in% RE_sig_lineage)),shape=21,  size=3, fill='red')
+
+p + ggtitle("Significant lineage for zero part RE-SKAt test (Permutation p-value)")
 ```

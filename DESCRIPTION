@@ -20,6 +20,7 @@ LinkingTo:
     Rcpp,
     RcppArmadillo
 Suggests: 
+    BiocManager,
     data.tree,
     ggplot2,
     ggtree,

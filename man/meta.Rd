@@ -21,6 +21,6 @@ A dataframe
 meta
 }
 \description{
-A dataset containing subject-level variables pooled from five studies of colon cancer status
+A dataset containing subject-level variables pooled from five gut microbiome studies of colon cancer.
 }
 \keyword{datasets}
