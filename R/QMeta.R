@@ -433,10 +433,9 @@
   one.acc.new <- one.acc
   # adaptive permutation test
   for (k in start.nperm:end.nperm) {
-    X.perm.list = list()
+    X.perm.list = X.list
     for(p in 1:length(X.list)){
       idx = sample(1:nrow(X.list[[p]])) # sampling the index and reset the design matrix based on the new index
-      X.perm.list[[p]] = X.list[[p]]
       X.perm.list[[p]][,X.par.index] = X.list[[p]][idx,X.par.index]
     }
     # get the permutation test statistics

@@ -437,11 +437,10 @@
 
   for(k in start.nperm:end.nperm){
 
-    perm.index = lapply(Z.list, function(i) sample(1:nrow(i)))
-
     Z.perm.list = Z.list
     for (i in 1:iter.num){
-      Z.perm.list[[i]][,Z.par.index] =  Z.perm.list[[i]][perm.index[[i]],Z.par.index]
+      idx = sample(1:nrow(Z.list[[i]]))
+      Z.perm.list[[i]][,Z.par.index] =  Z.perm.list[[i]][idx,Z.par.index]
     }
 
     tmp = try( .Score.test.stat.zero.meta.4Gresampling.c(Z.perm.list, Z.par.index,n.par.interest.alpha, col.zero.index.list, zero.vA.list.meta, zero.Vinv.list.meta, zero.VY.list.meta, Method = Method, W.zero = W.zero) )
