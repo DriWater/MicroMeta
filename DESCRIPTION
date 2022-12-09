@@ -20,10 +20,12 @@ LinkingTo:
     Rcpp,
     RcppArmadillo
 Suggests: 
+    ape,
     BiocManager,
     data.tree,
     ggplot2,
     ggtree,
+    HMP,
     knitr,
     rmarkdown,
     stringr
