@@ -16,7 +16,7 @@ QCAT_Meta(
 )
 }
 \arguments{
-\item{OTU}{a list of matrices contains counts with each row corresponds to a sample and each column corresponds to an OTU or a taxa. Each matrices' taxas are better to the same. Column name is mandatory.}
+\item{OTU}{a list of matrices contains OTU counts with each row corresponds to a sample and each column corresponds to an OTU or a taxa. Each matrices' taxas are better to the same. Column name is mandatory.}
 
 \item{X}{a list of matrices contains covariates for the positive-part test with each column pertains to one variable (pertains to the covariate of interest or the confounders). The number of elements of of X and OTU must be the same. The column number of each matrix in this list must be the same.}
 
@@ -26,11 +26,11 @@ QCAT_Meta(
 If provided, tests will be performed for lineages based on the taxonomic rank. The output contains P-values for all lineages; a list of significant lineages controlling the false discovery rate (based on resampling p-value if resampling test was performed); p-values of the global tests (Fisher- and Simes-combined the p-values for testing lineages).
 If not provided, one test will be performed with all the OTUs and one p-value will be output.}
 
-\item{Method}{The meta-analysis method to be used. Including fixed effect methods such as FE-MV test and FE-VC test and random effect methods like Het-SKAT and RE-SKAT test.}
+\item{Method}{Meta-analysis method to be used. Including fixed effect methods such as FE-MV test and FE-VC test and random effect methods like Het-SKAT and RE-SKAT test.}
 
 \item{min.depth}{keep samples with depths >= min.depth.}
 
-\item{n.perm}{perform asymptotic test is n.resample is null, other perform resampling tests using the specified number of resamplings.}
+\item{n.perm}{perform asymptotic test is n.perm is null, other perform resampling tests using the specified number of resamplings.}
 
 \item{fdr.alpha}{false discovery rate for multiple tests on the lineages.}
 }
@@ -48,4 +48,16 @@ OTU = data.meta$OTU
 Tax = data.meta$Tax
 case = data.meta$covariate
 QCAT_Meta(OTU, case, 1, Tax, Method = "FE-MV", min.depth=0, n.perm=NULL, fdr.alpha=0.05)
+}
+\references{
+Tang ZZ, Chen G, Alekseyenko AV, Li H. (2017) A general framework for association analysis of microbial communities on a taxonomic tree.
+\emph{Bioinformatics}
+\doi{10.1093/bioinformatics/btw804}.
+
+Lee S, Teslovich TM, Boehnke M, Lin X. (2013) General framework for meta-analysis of rare variants in sequencing association studies. Am J Hum Genet.
+\emph{Am J Hum Genet}
+\doi{10.1016/j.ajhg.2013.05.010}.
+
+Benjamini, Yoav, and Yosef Hochberg.(1995) Controlling the False Discovery Rate: A Practical and Powerful Approach to Multiple Testing.
+\emph{Journal of the Royal Statistical Society. Series B}
 }
