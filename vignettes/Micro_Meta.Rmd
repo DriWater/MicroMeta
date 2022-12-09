@@ -65,11 +65,11 @@ lowest rank in the Tax matrix must cover all the taxas appear in the OTU table l
 
 * `Method` same as before.
 
-*`min.depth` same as before.
+* `min.depth` same as before.
 
-*`n.perm` same as before. 
+* `n.perm` same as before. 
 
-`fdr.alpha`  same as before.
+* `fdr.alpha`  same as before.
 
 ## Quick Start
 
@@ -213,7 +213,7 @@ print(one_part_VC$sig.lineage)
 
 #### Visualization
 
-```{r fig.width= 6, fig.height= 6, fig.align='center', dpi=450}
+```{r fig.width= 4, fig.height= 4, fig.align='center', dpi=450}
 p <- ggtree(tree.vis, layout='circular') +
   geom_hilight(node=137, fill="yellow", alpha= 0.6) +
   geom_hilight(node=237, fill="steelblue", alpha= 0.2) +
@@ -230,7 +230,7 @@ p + ggtitle("Significant lineage for FE-VC test (Asympotitc p-value)")
 ```{r}
 ## Asymptotic p-value
 Method = "Het-SKAT"
-one_part_Het <- QCAT_Meta(otu.tab.lst, X , 1, Tax = Tax, Method = Method, n.perm = 300)
+one_part_Het <- QCAT_Meta(otu.tab.lst, X , 1, Tax = Tax, Method = Method, n.perm = 450)
 Het_sig_lineage <- one_part_Het$sig.lineage
 Het_sig_lineage <- str_replace_all(Het_sig_lineage," ", "_")
 #Het_sig_lineage <- Het_sig_lineage[Het_sig_lineage != "2_Bacteria"]
@@ -242,7 +242,7 @@ print(one_part_Het$sig.lineage)
 
 #### Visualization
 
-```{r fig.width= 6, fig.height= 6, fig.align='center', dpi=450}
+```{r fig.width= 4, fig.height= 4, fig.align='center', dpi=450}
 p <- ggtree(tree.vis, layout='circular') +
   geom_hilight(node=174, fill="darkgreen", alpha= 0.6) +
   geom_hilight(node=154, fill="darkgreen", alpha= 0.6) +
@@ -260,8 +260,7 @@ p + ggtitle("Significant lineage for Het-SKAT test (Permutation p-value)")
 
 ```{r}
 ## Rarefy
-
-Rarefy <- function (otu.tab, depth = min(rowSums(otu.tab))){
+Rarefy <- function (otu.tab, depth = min(rowSums(otu.tab)),seed = 1145){
   # Rarefaction function: downsample to equal depth
   #	
   # Args:
@@ -271,13 +270,14 @@ Rarefy <- function (otu.tab, depth = min(rowSums(otu.tab))){
   # Returns:
   # 	otu.tab.rff: Rarefied OTU table
   #		discard: labels of discarded samples
-  #
+  
   otu.tab <- as.matrix(otu.tab)
   ind <- (rowSums(otu.tab) < depth)
   sam.discard <- rownames(otu.tab)[ind]
   otu.tab <- otu.tab[!ind, ]
   
   rarefy <- function(x, depth){
+    set.seed(seed)
     y <- sample(rep(1:length(x), x), depth)
     y.tab <- table(y)
     z <- numeric(length(x))
@@ -299,8 +299,7 @@ otu.tab.lst <- lapply(otu.tab.lst,function(X){Rarefy(X)$otu.tab.rff})
 
 ```{r}
 ## Permutation p-value
-Method = "RE-SKAT"
-zero_part_RE <- QCAT_GEE_Meta(otu.tab.lst, X , 1, Tax = Tax, Method = Method, n.perm = 300)
+zero_part_RE <- QCAT_GEE_Meta(otu.tab.lst, X , 1, Tax = Tax, Method = "RE-SKAT", n.perm = 300)
 RE_sig_lineage <- zero_part_RE$sig.lineage
 RE_sig_lineage <- str_replace_all(RE_sig_lineage," ", "_")
 #RE_sig_lineage <- RE_sig_lineage[RE_sig_lineage != "2_Bacteria"]
@@ -311,36 +310,35 @@ RE_sig_lineage <- unlist(lapply(1:length(RE_sig_lineage),function(X){tip_num+whi
 print(zero_part_RE$sig.lineage) 
 ```
 
-```{r fig.width= 6, fig.height= 6, fig.align='center', dpi=450}
+```{r fig.width= 4, fig.height= 4, fig.align='center', dpi=450}
+
+## Visualize  some of the significant lineage                                        
 p <- ggtree(tree.vis, layout='circular') +
-  geom_hilight(node=151, fill="steelblue", alpha= 0.6) +
+  geom_hilight(node=158, fill="steelblue", alpha= 0.6) +
   geom_hilight(node=174, fill="steelblue", alpha= 0.6) +
   geom_hilight(node=216, fill="yellow", alpha= 0.6) +
   geom_hilight(node=154, fill="yellow", alpha= 0.6) +
-  geom_hilight(node=213, fill="darkgreen", alpha= 0.6) +
+  geom_hilight(node=214, fill="darkgreen", alpha= 0.6) +
   geom_hilight(node=190, fill="darkgreen", alpha= 0.6) +
-  geom_hilight(node=136, fill="steelblue", alpha= 0.3, type="rect") +
-  geom_hilight(node=135, fill="steelblue", alpha= 0.2, type="rect") +
+  geom_hilight(node=178, fill="steelblue", alpha= 0.2, type="rect") +
   geom_hilight(node=237, fill="steelblue", alpha= 0.2) +
-  geom_cladelab(node=151, label="Erysipelotrichaceae", align=TRUE,  angle=-25,
+  geom_cladelab(node=158, label="Clostridiaceae", align=TRUE,  angle=-55,
                 offset = 2.0, textcolor='black', barcolor='black', hjust= 0.5, vjust = 0.75 , fontsize=2)+
   geom_cladelab(node=174, label="Peptoniphilaceae", align=TRUE,  angle=0,
                 offset = 2.0, textcolor='black', barcolor='black', hjust= 0.5, vjust = 0.75 , fontsize=2)+
-  geom_cladelab(node=216, label="Porphyromonadaceae", align=TRUE,  angle=20,
+  geom_cladelab(node=216, label="Porphyromonadaceae", align=TRUE,  angle=-67,
                 offset = 2.0, textcolor='black', barcolor='black', hjust= 0.5, vjust = -0.5 , fontsize=2) +
-  geom_cladelab(node=154, label="Peptostreptococcaceae", align=TRUE,  angle=15,
+  geom_cladelab(node=154, label="Peptostreptococcaceae", align=TRUE,  angle= -75,
                 offset = 2.0, textcolor='black', barcolor='black', hjust= 0.5, vjust = 1, fontsize=2) +
-  geom_cladelab(node=213, label="Bacteroidaceae", align=TRUE,  angle=5,
+  geom_cladelab(node=214, label="Prevotellaceae", align=TRUE,  angle=-77,
                 offset = 9.0, textcolor='black', barcolor='black', hjust= 0.5, vjust = 0, fontsize=2) +
   geom_cladelab(node=190, label="Sutterellaceae", align=TRUE,  angle=45,
                 offset = 9.0, textcolor='black', barcolor='black', hjust= 0.5, vjust = 0, fontsize=2) +
-  geom_cladelab(node=136, label="Bacilli", align=TRUE,  angle= -60,
-                offset = 9.0, textcolor='black', barcolor='black', vjust = 1, hjust = 0.5, fontsize=5) +
-  geom_cladelab(node=135, label="Firmicutes", align=TRUE,
-                offset = 15.0, textcolor='black', barcolor='black', vjust=2.0, fontsize=6) +
+  geom_cladelab(node=178, label="Proteobacteria", align=TRUE, angle = 60,
+                offset = 15.0, textcolor='black', barcolor='black', hjust= 0.5, vjust= -0.5, fontsize=6) +
   geom_cladelab(node=237, label="Euryarchaeota", align=TRUE,  angle=-65,
                 offset = 2.0, textcolor='black', barcolor='black', hjust= 0.5, vjust = -0.5 , fontsize=4) +
-  geom_point2(aes(subset=(node %in% RE_sig_lineage)),shape=21,  size=3, fill='red')
+  geom_point2(aes(subset=(node %in% c(174,216,214,154,158,190,178,237,134))),shape=21,  size=3, fill='red')
 
 p + ggtitle("Significant lineage for zero part RE-SKAt test (Permutation p-value)")
 ```
