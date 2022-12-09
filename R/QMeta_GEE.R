@@ -779,6 +779,18 @@
 #' @import geepack
 #' @importFrom stats coef optim pchisq
 #' @importFrom dplyr bind_rows
+#' @references
+#' Lee S, Teslovich TM, Boehnke M, Lin X. (2013) General framework for meta-analysis of rare variants in sequencing association studies. Am J Hum Genet.
+#' \emph{Am J Hum Genet}
+#' \doi{10.1016/j.ajhg.2013.05.010}.
+#' @references
+#' Benjamini, Yoav, and Yosef Hochberg.(1995) Controlling the False Discovery Rate: A Practical and Powerful Approach to Multiple Testing.
+#' \emph{Journal of the Royal Statistical Society. Series B}
+#' \doi{http://www.jstor.org/stable/2346101}
+#' @references
+#' Zeger, Scott L., and Kung-Yee Liang. (1986) Longitudinal Data Analysis for Discrete and Continuous Outcomes.
+#' \emph{Biometrics}
+#' \doi{https://doi.org/10.2307/2531248}.
 QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.perm=NULL,  fdr.alpha=0.05){
   n.OTU = length(OTU)
   n.resample = n.perm

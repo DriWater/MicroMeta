@@ -706,15 +706,15 @@
 
 #' Title
 #'
-#' @param OTU a list of matrices contains counts with each row corresponds to a sample and each column corresponds to an OTU or a taxa. Each matrices' taxas are better to the same. Column name is mandatory.
+#' @param OTU a list of matrices contains OTU counts with each row corresponds to a sample and each column corresponds to an OTU or a taxa. Each matrices' taxas are better to the same. Column name is mandatory.
 #' @param X a list of matrices contains covariates for the positive-part test with each column pertains to one variable (pertains to the covariate of interest or the confounders). The number of elements of of X and OTU must be the same. The column number of each matrix in this list must be the same.
 #' @param X.index a vector indicate the columns in X for the covariate(s) of interest.
 #' @param Tax a matrix define the taxonomy ranks with each row corresponds to an OTU or a taxa and each column corresponds to a rank (start from the higher taxonomic level). Row name is mandatory and should be consistent with the column name of the OTU table,  Column name should be formated as "Rank1", "Rank2 ()"... etc
 #'        If provided, tests will be performed for lineages based on the taxonomic rank. The output contains P-values for all lineages; a list of significant lineages controlling the false discovery rate (based on resampling p-value if resampling test was performed); p-values of the global tests (Fisher- and Simes-combined the p-values for testing lineages).
 #'        If not provided, one test will be performed with all the OTUs and one p-value will be output.
-#' @param Method The meta-analysis method to be used. Including fixed effect methods such as FE-MV test and FE-VC test and random effect methods like Het-SKAT and RE-SKAT test.
+#' @param Method Meta-analysis method to be used. Including fixed effect methods such as FE-MV test and FE-VC test and random effect methods like Het-SKAT and RE-SKAT test.
 #' @param min.depth keep samples with depths >= min.depth.
-#' @param n.perm perform asymptotic test is n.resample is null, other perform resampling tests using the specified number of resamplings.
+#' @param n.perm perform asymptotic test is n.perm is null, other perform resampling tests using the specified number of resamplings.
 #' @param fdr.alpha false discovery rate for multiple tests on the lineages.
 #'
 #' @return A list with this elements
@@ -734,7 +734,17 @@
 #' @import geepack
 #' @importFrom stats coef optim pchisq
 #' @importFrom dplyr bind_rows
-
+#' @references
+#' Tang ZZ, Chen G, Alekseyenko AV, Li H. (2017) A general framework for association analysis of microbial communities on a taxonomic tree.
+#' \emph{Bioinformatics}
+#' \doi{10.1093/bioinformatics/btw804}.
+#' @references
+#' Lee S, Teslovich TM, Boehnke M, Lin X. (2013) General framework for meta-analysis of rare variants in sequencing association studies. Am J Hum Genet.
+#' \emph{Am J Hum Genet}
+#' \doi{10.1016/j.ajhg.2013.05.010}.
+#' @references
+#' Benjamini, Yoav, and Yosef Hochberg.(1995) Controlling the False Discovery Rate: A Practical and Powerful Approach to Multiple Testing.
+#' \emph{Journal of the Royal Statistical Society. Series B}
 QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.perm=NULL, fdr.alpha=0.05){
   n.resample = n.perm
   n.OTU = length(OTU)
