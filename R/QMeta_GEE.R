@@ -753,7 +753,6 @@
 #' @references
 #' Benjamini, Yoav, and Yosef Hochberg.(1995) Controlling the False Discovery Rate: A Practical and Powerful Approach to Multiple Testing.
 #' \emph{Journal of the Royal Statistical Society. Series B}
-#' \doi{http://www.jstor.org/stable/2346101}
 #' @references
 #' Zeger, Scott L., and Kung-Yee Liang. (1986) Longitudinal Data Analysis for Discrete and Continuous Outcomes.
 #' \emph{Biometrics}
