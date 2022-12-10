@@ -223,7 +223,7 @@
 
 }
 
-.Score.test.stat.zero.meta.4Gresampling <- function(Z.perm.list, Z.par.index, n.par.interest.alpha, col.zero.index.list, vA.list.meta, Vinv.list.meta, VY.list.meta, Method = "FE-MV", W.zero = NULL){
+.Score.test.stat.zero.meta.4Gresampling <- function(Z.perm.list, Z.par.index, n.par.interest.alpha, col.zero.index.list, vA.list.meta, Vinv.list.meta, VY.list.meta, Method = "FE-MV"){
 
   # W = W.zero
   iter.num = length(Z.perm.list)
@@ -301,13 +301,7 @@
   }
   # if (Method == "SKAT")
   # {
-  #   if(is.null(W))
-  #   {
-  #     W = diag(1,nrow = n.par.save.alpha)
-  #   }
-  #   else{
-  #     W = W[save.index.zero,save.index.zero]
-  #   }
+  #   W = diag(1,nrow = n.par.save.alpha)
   #   eigen.cov.zero <- eigen(est.cov.meta)
   #   eigen.cov.zero.sqrt = eigen.cov.zero$vectors %*% diag(sqrt(eigen.cov.zero$values),nrow = length(eigen.cov.zero$values)) %*% solve(eigen.cov.zero$vectors)
   #   weight.cov.zero = eigen(eigen.cov.zero.sqrt %*% W %*% eigen.cov.zero.sqrt)$values
@@ -358,7 +352,7 @@
 #Rcpp::List score_test_stat_meta_resampling_c(const Rcpp::List& Z_perm_list, const Rcpp::List& col_zero_index_list, const Rcpp::List& vA_list_meta, const Rcpp::List& Vinv_list_meta,
 #                                             const Rcpp::List& VY_list_meta, const arma::vec& Z_par_index,int n_par_interest_alpha)
 
-.Score.test.stat.zero.meta.4Gresampling.c <- function(Z.perm.list, Z.par.index, n.par.interest.alpha, col.zero.index.list, vA.list.meta, Vinv.list.meta, VY.list.meta, Method = "FE-MV", W.zero = NULL){
+.Score.test.stat.zero.meta.4Gresampling.c <- function(Z.perm.list, Z.par.index, n.par.interest.alpha, col.zero.index.list, vA.list.meta, Vinv.list.meta, VY.list.meta, Method = "FE-MV"){
   tmp = score_test_stat_zero_meta_resampling_c(Z.perm.list, col.zero.index.list, vA.list.meta, Vinv.list.meta, VY.list.meta, Z.par.index, n.par.interest.alpha)
   est.cov.meta = tmp$est_cov_meta
   score.alpha.meta = tmp$score_alpha_meta
@@ -375,13 +369,7 @@
   }
   # if (Method == "SKAT")
   # {
-  #   if(is.null(W))
-  #   {
-  #     W = diag(1,nrow = n.par.save.alpha)
-  #   }
-  #   else{
-  #     W = W[save.index.zero,save.index.zero]
-  #   }
+  #   W = diag(1,nrow = n.par.save.alpha)
   #   eigen.cov.zero <- eigen(est.cov.meta)
   #   eigen.cov.zero.sqrt = eigen.cov.zero$vectors %*% diag(sqrt(eigen.cov.zero$values),nrow = length(eigen.cov.zero$values)) %*% solve(eigen.cov.zero$vectors)
   #   weight.cov.zero = eigen(eigen.cov.zero.sqrt %*% W %*% eigen.cov.zero.sqrt)$values
@@ -429,7 +417,7 @@
 
 
 # add 10/22/2022 for adaptive resampling
-.resample.work.zero.meta <- function(Z.list, Z.par.index, n.par.interest.alpha, col.zero.index.list, score.stat.zero.meta, zero.vA.list.meta, zero.Vinv.list.meta, zero.VY.list.meta, start.nperm, end.nperm, n.zero, zero.acc, Method = "FE-MV", W.zero = NULL){
+.resample.work.zero.meta <- function(Z.list, Z.par.index, n.par.interest.alpha, col.zero.index.list, score.stat.zero.meta, zero.vA.list.meta, zero.Vinv.list.meta, zero.VY.list.meta, start.nperm, end.nperm, n.zero, zero.acc, use.cpp, Method = "FE-MV"){
 
   iter.num = length(Z.list)
   n.zero.new = n.zero
@@ -442,10 +430,12 @@
       idx = sample(1:nrow(Z.list[[i]]))
       Z.perm.list[[i]][,Z.par.index] =  Z.perm.list[[i]][idx,Z.par.index]
     }
-
-    tmp = try( .Score.test.stat.zero.meta.4Gresampling.c(Z.perm.list, Z.par.index,n.par.interest.alpha, col.zero.index.list, zero.vA.list.meta, zero.Vinv.list.meta, zero.VY.list.meta, Method = Method, W.zero = W.zero) )
-
-
+    if(use.cpp){
+      tmp = try( .Score.test.stat.zero.meta.4Gresampling.c(Z.perm.list, Z.par.index,n.par.interest.alpha, col.zero.index.list, zero.vA.list.meta, zero.Vinv.list.meta, zero.VY.list.meta, Method = Method) )
+    }
+    else{
+      tmp = try( .Score.test.stat.zero.meta.4Gresampling(Z.perm.list, Z.par.index,n.par.interest.alpha, col.zero.index.list, zero.vA.list.meta, zero.Vinv.list.meta, zero.VY.list.meta, Method = Method) )
+    }
 
     if(!("try-error" %in% class(tmp))){
 
@@ -483,15 +473,12 @@
 
 }
 
-# add 06/01/2016: function Score.test2 to run two-part test in the general setting(zero part: use score GEE test)
-# Y: nxm count of microbiomes
-# X: covariates for positive part: first column is always intercept
-# Z: covariates for zero part: first column is always intercept
+
+# Z.list: a list of covariates for zero part: first column is always intercept
 # Z.par.index: index for the parameter of interest for the Z part
 
-.Score.test.zero.meta <- function(Y.list, Z.list, Z.par.index, seed=11, resample=FALSE, n.replicates=NULL, Method = "FE-MV", Weight.zero=NULL){
+.Score.test.zero.meta <- function(Y.list, Z.list, Z.par.index, seed=11, resample=FALSE, n.replicates=NULL, use.cpp = F, Method = "FE-MV"){
   iter.num = length(Z.list)
-  W.zero = Weight.zero
   p.par = length(Z.par.index)
   m = ncol(Y.list[[1]])
   n = nrow(Y.list[[1]])
@@ -503,19 +490,6 @@
   }
   if (length(unique(sapply(1:n.OTU,function(j) ncol(Y.list[[j]]))))!=1){
     stop("Error: The taxon in each study should be the same")
-  }
-  if(!is.null(W.zero))
-  {
-    if(!is.matrix(W.zero))
-    {
-      W.zero = as.matrix(W.zero)
-      warning("The Weight Matrix for positvie part should be a matrix")
-    }
-    if (dim(W.zero)[1] != n.par.interest.alpha | dim(W.zero)[2] != n.par.interest.alpha)
-    {
-      stop("Error: The dimesion of Weight Matrix of SKAT Method for positive part should
-           equal to the number of beta parameter of interest")
-    }
   }
   if(m<=1){
     stop("Error: Improper dimension for OTU table")
@@ -609,9 +583,6 @@
     score.alpha.meta = score.alpha.meta[save.index.zero]
     est.cov.zero.meta = est.cov.zero.meta[save.index.zero,save.index.zero]
     est.cov.zero.inv = ginv(est.cov.zero.meta)
-    if(!is.null(W.zero)){
-      W.zero = W.zero[save.index.zero,save.index.zero]
-    }
     if (Method == "FE-MV")
     {
       score.stat.zero.meta = score.alpha.meta %*% est.cov.zero.inv %*% score.alpha.meta #FE-Burden
@@ -620,10 +591,7 @@
     }
     #if (Method == "SKAT")
     # {
-    #   if(is.null(W.zero))
-    #   {
-    #     W.zero = diag(1,nrow = n.par.interest.alpha)
-    #   }
+    #   W.zero = diag(1,nrow = n.par.interest.alpha)
     #   if(n.zero>0){
     #     eigen.cov.zero <- eigen(est.cov.zero.meta)
     #     eigen.cov.zero.sqrt = eigen.cov.zero$vectors %*% diag(sqrt(eigen.cov.zero$values),nrow = length(eigen.cov.zero$values)) %*% solve(eigen.cov.zero$vectors)
@@ -717,7 +685,7 @@
       while(flag & end.nperm <= n.replicates){
 
 
-        results = .resample.work.zero.meta(Z.list, Z.par.index, n.par.interest.alpha, col.zero.index.list, score.stat.zero.meta, zero.vA.list.meta, zero.Vinv.list.meta, zero.VY.list.meta, start.nperm, end.nperm, n.zero, zero.acc, Method = Method, W.zero = NULL)
+        results = .resample.work.zero.meta(Z.list, Z.par.index, n.par.interest.alpha, col.zero.index.list, score.stat.zero.meta, zero.vA.list.meta, zero.Vinv.list.meta, zero.VY.list.meta, start.nperm, end.nperm, n.zero, zero.acc, use.cpp = use.cpp, Method = Method)
         n.zero = results$n.zero.new
         zero.acc = results$zero.acc.new
         flag = results$flag
@@ -732,7 +700,7 @@
         if(start.nperm < n.replicates & end.nperm > n.replicates){
           #warning(paste( "Inaccurate pvalue with", n.replicates, "resamplings"))
 
-          results = .resample.work.zero.meta(Z.list, Z.par.index, n.par.interest.alpha, col.zero.index.list, score.stat.zero.meta, zero.vA.list.meta, zero.Vinv.list.meta, zero.VY.list.meta, start.nperm, end.nperm, n.zero, zero.acc, Method = Method, W.zero = NULL)
+          results = .resample.work.zero.meta(Z.list, Z.par.index, n.par.interest.alpha, col.zero.index.list, score.stat.zero.meta, zero.vA.list.meta, zero.Vinv.list.meta, zero.VY.list.meta, start.nperm, end.nperm, n.zero, zero.acc, use.cpp = use.cpp, Method = Method)
 
           n.zero = results$n.zero.new
           zero.acc = results$zero.acc.new
@@ -790,13 +758,17 @@
 #' Zeger, Scott L., and Kung-Yee Liang. (1986) Longitudinal Data Analysis for Discrete and Continuous Outcomes.
 #' \emph{Biometrics}
 #' \doi{https://doi.org/10.2307/2531248}.
-QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.perm=NULL,  fdr.alpha=0.05){
+QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.perm=NULL, use.cpp = F, fdr.alpha=0.05){
   n.OTU = length(OTU)
   n.resample = n.perm
   # if(length(unique(sapply(1:n.OTU,function(j) ncol(OTU[[j]]))))!= 1){
   #   stop("The taxa in each study should be the same")
   # }
-
+  if(Method %in% c("RE-SKAT", "Het-SKAT")){
+    if(is.null(n.perm)){
+      stop("The p-value for random effect meta-analysis method must be got by resampling test")
+    }
+  }
   n.Z = length(Z)
   if(n.OTU!=n.Z)
   {
@@ -866,7 +838,7 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth
       pval.zero = as.matrix( tmp$score.pvalue )
       colnames(pval.zero) = paste0("Asymptotic-",Method)
     }else{
-      tmp = .Score.test.zero.meta(count, Z, Z.index, seed=11, resample=TRUE, n.replicates=NULL, Method = Method)
+      tmp = .Score.test.zero.meta(count, Z, Z.index, seed=11, resample=TRUE, n.replicates=NULL, use.cpp = use.cpp, Method = Method)
       if(Method %in% c("RE-SKAT", "Het-SKAT")){
         pval.zero = c(tmp$score.Rpvalue)
         names(pval.zero) = paste0("Resampling-",Method)
@@ -946,10 +918,10 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth
           else{
 
             if(Method %in% c("RE-SKAT", "Het-SKAT")){
-              tmp = .Score.test.zero.meta(Y, Z, Z.index, seed=11, resample=TRUE, n.replicates=n.resample, Method = Method)
+              tmp = .Score.test.zero.meta(Y, Z, Z.index, seed=11, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = Method)
               pval.zero = cbind(pval.zero, tmp$score.Rpvalue)
             }else{
-              tmp = .Score.test.zero.meta(Y, Z, Z.index, seed=11, resample=TRUE, n.replicates=n.resample, Method = Method)
+              tmp = .Score.test.zero.meta(Y, Z, Z.index, seed=11, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = Method)
               pval.zero = cbind(pval.zero, c(tmp$score.pvalue, tmp$score.Rpvalue) )
             }
           }

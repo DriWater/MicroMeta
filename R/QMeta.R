@@ -238,7 +238,7 @@
   return(list(score.stat.beta = score.stat.beta, score.beta = A, est.cov = B, S.beta.list = S.beta.list, I.beta.list = I.beta.list))
 }
 
-.Score.test.stat.meta.4Gresampling <- function(X.perm.list, X.par.index, n.par.interest.beta, col.index.list, S.beta.list.meta, I.beta.list.meta, Method = "FE-MV", W = NULL) {
+.Score.test.stat.meta.4Gresampling <- function(X.perm.list, X.par.index, n.par.interest.beta, col.index.list, S.beta.list.meta, I.beta.list.meta, Method = "FE-MV") {
   stu.num <- length(X.perm.list) #  the total number of studies for meta analysis
 
   # initialize those statistics
@@ -321,9 +321,7 @@
     score.stat.meta.perm <- crossprod( score.beta.meta, crossprod(t(est.cov.inv), score.beta.meta)) # Multivariate test
   }
   # if (Method == "SKAT") {
-  #   if (is.null(W)) {
-  #     W <- diag(1, nrow = n.par.interest.beta)
-  #   }
+  #   W <- diag(1, nrow = n.par.interest.beta)
   #   score.stat.meta.perm <- score.beta.meta %*% W %*% score.beta.meta  # FE-SKAT-test(FE-SKAT)
   # }
   if (Method == "FE-VC") {
@@ -364,7 +362,7 @@
 }
 
 
-.Score.test.stat.meta.4Gresampling.c <- function(X.perm.list, X.par.index, n.par.interest.beta, col.index.list, S.beta.list.meta, I.beta.list.meta, Method = "FE-MV", W = NULL){
+.Score.test.stat.meta.4Gresampling.c <- function(X.perm.list, X.par.index, n.par.interest.beta, col.index.list, S.beta.list.meta, I.beta.list.meta, Method = "FE-MV"){
   tmp = score_test_stat_meta_resampling_c(X.perm.list, col.index.list, S.beta.list.meta, I.beta.list.meta, X.par.index, n.par.interest.beta)
   est.cov.meta = tmp$est_cov_meta
   score.beta.meta = tmp$score_beta_meta
@@ -381,10 +379,7 @@
   }
   # if (Method == "SKAT")
   # {
-  #   if(is.null(W))
-  #   {
   #     W = diag(1,nrow = n.par.interest.beta)
-  #   }
   #   #fesk.p = farebrother(score.stat.fesk,weight, h = rep(1,m-1), delta = rep(0,m-1), maxit = 100000,eps = 10^(-10), mode = 1)$Qq
   #   score.stat.meta.perm = crossprod( score.beta.meta, crossprod(t(W), score.beta.meta))
   # }
@@ -428,7 +423,7 @@
   return(as.numeric(score.stat.meta.perm))
 }
 
-.resample.work.one.meta <- function(X.list, X.par.index, n.par.interest.beta, col.index.list, score.stat.meta, S.beta.list.meta, I.beta.list.meta, start.nperm, end.nperm, n.one, one.acc, Method = "FE-MV", W = NULL) {
+.resample.work.one.meta <- function(X.list, X.par.index, n.par.interest.beta, col.index.list, score.stat.meta, S.beta.list.meta, I.beta.list.meta, start.nperm, end.nperm, n.one, one.acc, use.cpp, Method = "FE-MV") {
   n.one.new <- n.one
   one.acc.new <- one.acc
   # adaptive permutation test
@@ -439,8 +434,12 @@
       X.perm.list[[p]][,X.par.index] = X.list[[p]][idx,X.par.index]
     }
     # get the permutation test statistics
-    score.stat.meta.perm <- try(.Score.test.stat.meta.4Gresampling.c(X.perm.list, X.par.index, n.par.interest.beta, col.index.list, S.beta.list.meta, I.beta.list.meta, Method = Method, W = NULL))
-
+    if(use.cpp){
+      score.stat.meta.perm <- try(.Score.test.stat.meta.4Gresampling.c(X.perm.list, X.par.index, n.par.interest.beta, col.index.list, S.beta.list.meta, I.beta.list.meta, Method = Method))
+    }
+    else{
+      score.stat.meta.perm <- try(.Score.test.stat.meta.4Gresampling(X.perm.list, X.par.index, n.par.interest.beta, col.index.list, S.beta.list.meta, I.beta.list.meta, Method = Method))
+    }
     if (!("try-error" %in% class(score.stat.meta.perm))) {
       n.one.new <- n.one.new + 1 # if score.stat.meta.perm exists, then n.one.new + 1
       # if the permutation test statistics greater than original test statistics, cnt + 1
@@ -468,9 +467,8 @@
   return(list(n.one.new = n.one.new, one.acc.new = one.acc.new, flag = flag, next.end.nperm = next.end.nperm))
 }
 
-.Score.test.meta <- function(Y.list, X.list, X.par.index, seed=11, resample=FALSE, n.replicates=NULL, Method = "FE-MV", Weight=NULL ){
+.Score.test.meta <- function(Y.list, X.list, X.par.index, seed=11, resample=FALSE, n.replicates=NULL, use.cpp = F, Method = "FE-MV"){
   stu.num = length(X.list)
-  W = Weight
   p.par = length(X.par.index)
   m = ncol(Y.list[[1]])
   n = nrow(Y.list[[1]])
@@ -488,20 +486,6 @@
   # the taxa of each study should be the same
   if (length(unique(sapply(1:n.OTU,function(j) ncol(Y.list[[j]]))))!=1){
     stop("Error: The taxon in each study should be the same")
-  }
-  # if the Weight matrix is not provided, initialize it with identity matrix
-  if(!is.null(W))
-  {
-    if(!is.matrix(W))
-    {
-      W = as.matrix(W)
-      warning("The Weight Matrix of SKAT Method should be a matrix")
-    }
-    if (dim(W)[1] != n.par.interest.beta | dim(W)[2] != n.par.interest.beta)
-    {
-      stop("Error: The dimesion of Weight Matrix of SKAT Method should
-           equal to the number of beta parameter of interest")
-    }
   }
   # initialize the test statistics
   if(is.null(X.par.index) | n==0){
@@ -586,10 +570,8 @@
     }
     # if (Method == "SKAT")
     # {
-    #   if(is.null(W))
-    #   {
-    #     W = diag(1,nrow = n.par.interest.beta)
-    #   }
+    #
+    #   W = diag(1,nrow = n.par.interest.beta)
     #   #fesk.p = farebrother(score.stat.fesk,weight, h = rep(1,m-1), delta = rep(0,m-1), maxit = 100000,eps = 10^(-10), mode = 1)$Qq
     #   eigen.cov = eigen(est.cov.meta)
     #   eigen.cov.sqrt = crossprod(t(eigen.cov$vectors), crossprod(diag(sqrt(eigen.cov$values),nrow = length(eigen.cov$values)), solve(eigen.cov$vectors)))
@@ -656,7 +638,7 @@
       flag = 1
       while(flag & end.nperm <= n.replicates){
 
-        results = .resample.work.one.meta(X.list, X.par.index, n.par.interest.beta, col.index.list, score.stat.meta, S.beta.list.meta, I.beta.list.meta, start.nperm, end.nperm, n.one, one.acc, Method = Method, W = W)
+        results = .resample.work.one.meta(X.list, X.par.index, n.par.interest.beta, col.index.list, score.stat.meta, S.beta.list.meta, I.beta.list.meta, start.nperm, end.nperm, n.one, one.acc, use.cpp = use.cpp, Method = Method)
         n.one = results$n.one.new
         one.acc = results$one.acc.new
         flag = results$flag
@@ -670,7 +652,7 @@
 
         if(start.nperm < n.replicates & end.nperm > n.replicates){
           #warning(paste( "Inaccurate pvalue with", n.replicates, "permutations"))
-          results = .resample.work.one.meta(X.list, X.par.index, n.par.interest.beta, col.index.list, score.stat.meta, S.beta.list.meta, I.beta.list.meta, start.nperm, end.nperm, n.one, one.acc, Method = Method, W = W)
+          results = .resample.work.one.meta(X.list, X.par.index, n.par.interest.beta, col.index.list, score.stat.meta, S.beta.list.meta, I.beta.list.meta, start.nperm, end.nperm, n.one, one.acc, use.cpp = use.cpp, Method = Method)
           n.one = results$n.one.new
           one.acc = results$one.acc.new
 
@@ -705,19 +687,20 @@
 
 #' Title
 #'
-#' @param OTU a list of matrices contains OTU counts with each row corresponds to a sample and each column corresponds to an OTU or a taxa. Each matrices' taxas are better to the same. Column name is mandatory.
-#' @param X a list of matrices contains covariates for the positive-part test with each column pertains to one variable (pertains to the covariate of interest or the confounders). The number of elements of of X and OTU must be the same. The column number of each matrix in this list must be the same.
+#' @param OTU a list of matrices contains OTU counts with each row corresponding to a sample and each column corresponding to an OTU or taxa. Each matrix's taxas are better to the same. The column name is mandatory.
+#' @param X a list of matrices containing covariates for the positive-part test with each column pertaining to one variable (pertains to the covariate of interest or the confounders). The number of elements of X and OTU must be the same. The column number of each matrix in this list must be the same.
 #' @param X.index a vector indicate the columns in X for the covariate(s) of interest.
-#' @param Tax a matrix define the taxonomy ranks with each row corresponds to an OTU or a taxa and each column corresponds to a rank (start from the higher taxonomic level). Row name is mandatory and should be consistent with the column name of the OTU table,  Column name should be formated as "Rank1", "Rank2 ()"... etc
+#' @param Tax a matrix defines the taxonomy ranks with each row corresponding to an OTU or a taxa and each column corresponding to a rank (starting from the higher taxonomic level). Row name is mandatory and should be consistent with the column name of the OTU table, Column name should be formatted as "Rank1", "Rank2 ()"... etc
 #'        If provided, tests will be performed for lineages based on the taxonomic rank. The output contains P-values for all lineages; a list of significant lineages controlling the false discovery rate (based on resampling p-value if resampling test was performed); p-values of the global tests (Fisher- and Simes-combined the p-values for testing lineages).
 #'        If not provided, one test will be performed with all the OTUs and one p-value will be output.
-#' @param Method Meta-analysis method to be used. Including fixed effect methods such as FE-MV test and FE-VC test and random effect methods like Het-SKAT and RE-SKAT test.
+#' @param Method Meta-analysis method to be used. Including fixed effect methods such as the FE-MV test and FE-VC test and random effect methods like Het-SKAT and RE-SKAT test.
 #' @param min.depth keep samples with depths >= min.depth.
-#' @param n.perm perform asymptotic test is n.perm is null, other perform resampling tests using the specified number of resamplings.
+#' @param n.perm perform asymptotic test if n.perm is null, otherwise perform permutation tests using the specified number of resamplings.
 #' @param fdr.alpha false discovery rate for multiple tests on the lineages.
+#' @param use.cpp Logical value (default F). Whether to use Rcpp or not for resampling test.
 #'
 #' @return A list with this elements
-#'    \item{lineage.pval}{p-values for all lineages. By default ( Method = "FE-MV", n.perm = NULL ), only the asymptotic test will be performed. If use random effect meta-analysis methods ( Method = "RE-SKAT" or Method = "Het-SKAT" ), then resampling test must be performed.}
+#'    \item{lineage.pval}{p-values for all lineages. By default ( Method = "FE-MV", n.perm = NULL ), only the asymptotic test will be performed. If using random effect meta-analysis methods ( Method = "RE-SKAT" or Method = "Het-SKAT" ), then resampling test must be performed.}
 #'    \item{sig.lineage}{a vector of significant lineages.}
 #' @export
 #'
@@ -744,11 +727,16 @@
 #' @references
 #' Benjamini, Yoav, and Yosef Hochberg.(1995) Controlling the False Discovery Rate: A Practical and Powerful Approach to Multiple Testing.
 #' \emph{Journal of the Royal Statistical Society. Series B}
-QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.perm=NULL, fdr.alpha=0.05){
+QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.perm=NULL, use.cpp = F, fdr.alpha=0.05){
   n.resample = n.perm
   n.OTU = length(OTU)
   n.X = length(X)
   # drop.col = NULL
+  if(Method %in% c("RE-SKAT", "Het-SKAT")){
+    if(is.null(n.perm)){
+      stop("The p-value for random effect meta-analysis method must be got by resampling test")
+    }
+  }
   if(n.OTU != n.X)
   {
     stop("The study number of OTU table and Covariate should be the same")
@@ -810,7 +798,7 @@ QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, 
       colnames(pval) = paste0("Asymptotic-",Method)
     }else{ # resampling test + asymptotic test
       # (Y.list, X.list, X.par.index, seed=11, resample=FALSE, n.replicates=NULL, Method = "FE-MV", Weight=NULL )
-      tmp = .Score.test.meta(count, X, X.index, resample=TRUE, n.replicates=n.resample, Method = Method)
+      tmp = .Score.test.meta(count, X, X.index, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = Method)
       if(Method %in% c("RE-SKAT", "Het-SKAT")){
         pval = c(tmp$score.Rpvalue)
         names(pval) = paste0("Resampling-",Method)
@@ -903,10 +891,10 @@ QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, 
           else{
             # (Y.list, X.list, X.par.index, seed=11, resample=FALSE, n.replicates=NULL, Method = "FE-MV", Weight=NULL )
             if(Method %in% c("RE-SKAT", "Het-SKAT")){
-              tmp = .Score.test.meta(Y, X, X.index, resample=TRUE, n.replicates=n.resample, Method = Method)
+              tmp = .Score.test.meta(Y, X, X.index, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = Method)
               pval = cbind(pval, c(tmp$score.Rpvalue))
             }else{
-              tmp = .Score.test.meta(Y, X, X.index, resample=TRUE, n.replicates=n.resample, Method = Method)
+              tmp = .Score.test.meta(Y, X, X.index, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = Method)
               pval = cbind(pval, c(tmp$score.pvalue, tmp$score.Rpvalue) )
             }
           }
