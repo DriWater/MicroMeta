@@ -1,6 +1,8 @@
 ---
 title: "QCAT_Meta"
 output: rmarkdown::html_vignette
+bibliography: ../man/ref/ref.bib
+csl: ../man/ref/the-lancet.csl
 vignette: >
   %\VignetteIndexEntry{QCAT_Meta}
   %\VignetteEngine{knitr::rmarkdown}
@@ -12,18 +14,17 @@ Microbiomics are one of the promising genomic research areas because microbes pl
 significant roles in human health. Types and abundances of microbes are also helpful indicators of
 detecting human diseases and treatment effects. There have already existed lots of methods to test the
 association between the covariates and microbial communities, such as the Dirichlet-Multinomial (DM)
-test and Quasi-Conditional Association tests. However,
+test[@chen2013variable] and Quasi-Conditional Association tests (QCAT)[@tang2017general]. However,
 the limitation possesses in the power of such tests because of the small sample size of microbiome
 research; the high background variation of microbes among different samples and meta-analysis is
 beneficial to solve these problems.
 
 In this R package, *MicroMeta*, I will implement both fixed effect
-meta-analysis methods, for example, the FE-SKAT test , and random effect meta-analysis
-methods such as Het-SKAT and RE-SKAT test based on the summary statistics generated
+meta-analysis methods, for example, the FE-VC test, and random effect meta-analysis
+methods such as Het-SKAT and RE-SKAT tests based on the summary statistics generated
 by the QCAT method. Considering that excessive zero often be observed with microbiome data, I
-also employ generalized estimating equation (GEE) method to deal with the zero part of two part 
-model which is based on the assumption that the data have a probability mass at zero and a response 
-of positive values.
+employ the generalized estimating equation (GEE) method[@zeger1986longitudinal] to deal with the zero part of two-part 
+model[@tang2017general] which is based on the assumption that the data have a probability mass at zero and a response of positive values.
 
 If the taxonomic hierarchy is provided, the tests will be performed on the
 taxonomic tree to localize the covariate-associated lineages. If not, the tests will be performed using all
@@ -31,35 +32,36 @@ the taxon counts.
 
 ## Functionality
 
-`MicroMeta` include two core function: `QCAT_Meta` and `QCAT_GEE_Meta`, both of them provide various arguments for users to customize the fit: we introduce some commonly used arguments here. (For more information, type `?MicroMeta`.)
+`MicroMeta` include two core functions: `QCAT_Meta` and `QCAT_GEE_Meta`, both of them provide various arguments for users to customize the fit: we introduce some commonly used arguments here. (For more information, type `?MicroMeta`.)
 
 `QCAT_Meta` 
 
-* `OTU` is a list of matrices which contains OTU counts. For each matrices, 
-its row corresponds to a sample and each column corresponds to an OTU or a taxa. Column name is mandatory and better the same across all the matrices. 
+* `OTU` is a list of matrices that contains OTU counts. For each matrix, 
+its row corresponds to a sample and each column corresponds to an OTU or taxa. The column name is mandatory and better the same across all the matrices
 
-* `X` is a list of matrices. Each matrix contains covariates for the QCAT_Meta test with each column pertains to one variable (pertains to the covariate of interest or the confounders). The number of elements of of X and OTU must be the same. The column number of each matrix in this list must be the same.
+* `X` is a list of matrices. Each matrix contains covariates for the QCAT_Meta test with each column pertaining to one variable (pertains to the covariate of interest or the confounders). The number of elements of X and OTU must be the same. The column number of each matrix in this list must be the same.
 
-* `X.index` is a vector indicate the columns in X for the covariate(s) of interest.
+* `X.index` is a vector that indicate the columns in X for the covariate(s) of interest.
 
-* `Tax` a matrix define the taxonomy ranks with each row corresponds to an OTU or a taxa and each column corresponds to a rank (start from the higher taxonomic level). Row name is mandatory and should be consistent with the column name of the OTU table,  Column name should be formated as "Rank1", "Rank2 ()"... etc. If provided, tests will be performed for lineages based on the taxonomic rank. The output contains P-values for all lineages; a list of significant lineages controlling the false discovery rate (based on resampling p-value if resampling test was performed); If not provided, one test will be performed with all the OTUs and one p-value will be output. The 
-lowest rank in the Tax matrix must cover all the taxas appear in the OTU table list. 
+* `Tax` a matrix defines the taxonomy ranks with each row corresponding to an OTU or a taxa and each column corresponds to a rank (starting from the higher taxonomic level). Row name is mandatory and should be consistent with the column name of the OTU table,  Column name should be formatted as "Rank1", "Rank2 ()"... etc. If provided, tests will be performed for lineages based on the taxonomic rank. The output contains P-values for all lineages; a list of significant lineages controlling the false discovery rate (based on resampling p-value if resampling test was performed); If not provided, one test will be performed with all the OTUs and one p-value will be output. The lowest rank in the Tax matrix must cover all the taxas that appear in the OTU table list.
 
 * `Method` Meta-analysis method to be used in this test. Including fixed effect methods such as FE-MV test and FE-VC test and random effect methods like Het-SKAT and RE-SKAT test.
 
-*`min.depth` is a number, if this parameter is set, test will only be perfomed on samples with depths greater or equal to this value.
+*`min.depth` is a number, if this parameter is set, test will only be performed on samples with depths greater or equal to this value.
 
 *`n.perm` is a number, perform asymptotic test is n.perm is null, otherwise perform resampling tests using the specified number of resamplings. The random effect methods are mandatory to perform resampling tests. 
 
-`fdr.alpha`  false discovery rate for multiple tests on the lineages.
+*`use.cpp` Logical value. Whether to use Rcpp or not for resampling test.
+
+*`fdr.alpha`  false discovery rate for multiple tests on the lineages[@benjamini1995controlling].
 
 `QCAT_GEE_Meta`
 
 * `OTU` same as before. 
 
-* `X` a list of matrices contains covariates for the zero-part test with each column pertains to one variable (pertains to the covariate of interest or the confounders). The number of elements of Z and OTU must be the same. The column number of each matrix in this list must be the same.
+* `Z` is a list of matrices. Each matrix contains covariates for the QCAT_GEE_Meta test with each column pertaining to one variable (pertains to the covariate of interest or the confounders). The number of elements of Z and OTU must be the same. The column number of each matrix in this list must be the same.
 
-* `X.index` isa vector indicate the columns in X for the covariate(s) of interest.
+* `Z.index` is a vector that indicate the columns in Z for the covariate(s) of interest.
 
 * `Tax` same as before. 
 
@@ -69,11 +71,13 @@ lowest rank in the Tax matrix must cover all the taxas appear in the OTU table l
 
 * `n.perm` same as before. 
 
+*`use.cpp` same as before.
+
 * `fdr.alpha`  same as before.
 
 ## Quick Start
 
-#### If you have not installed ggtree, please run this chuck of code 
+#### If you have not installed ggtree package, please run this chuck of code 
 ```{r, eval = F}
 if (!require("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
@@ -105,12 +109,12 @@ data(tax)
 
 #### Data Processing
 ```{r}
-## Split the OTU count table into five studies according to their data sources 
+## Split the OTU count table into five studies according to their sources 
 sample.id <- rownames(count.genus)
-sample.id <- str_extract(sample.id,'^[A-Z]+') # extract their data source
+sample.id <- str_extract(sample.id,'^[A-Z]+') # extract all the sources for each observation
 sample.category <- unique(sample.id) # categories of data sources
 
-##  split the samples according to their data source
+##  split the samples according to their sources
 otu.tab.lst <- split.data.frame(count.genus, sample.id)
 
 rename.mat <- function(x,col,names){
@@ -124,7 +128,7 @@ otu.tab.lst <- lapply(otu.tab.lst, rename.mat, col = ncol(count.genus), names=co
 
 
 
-## Find the column indexes for each otu.table which has more than 90% zero observations
+## Find the column indexes for each otu table which has more than 90% zero observations
 .Remove.ind <- function(otu.tab.lst, ratio){
   n = length(otu.tab.lst)
   rev.ind.lst = NULL
@@ -170,17 +174,17 @@ Tax <- tax[2:7] # Extract the Tax information needed
 Tax <- Tax[!duplicated(Tax$genus),]
 colnames(Tax) <- paste("Rank",c(1:ncol(Tax)),sep="")
 
-## The row names for the Tax are mandatory and should cover all the taxa include in the origin OTU table (count.gene)
+## The row names for the Tax are mandatory and should cover all the taxa included in the origin OTU table (count.gene data)
 rownames(Tax) <- Tax$Rank6
 
-## Construct the design matrix (Case group:1; Control Group: 0). Can add more covariates of interest like age, gender, etc. 
+## Construct the design matrix (Case group:1; Control Group: 0). Can add more covariates of interest like age, gender, etc... 
 X <- rep(1,nrow(count.genus))
 X[meta$Group == 'CTR'] <- 0
 X <- split(X,sample.id)
 X.index = 1
 ```
 
-#### Tranform the Tax data into tree format
+#### Transform the Tax data into tree format
 ```{r}
 Tax.df <- as.data.frame(Tax) #Tax is the taxonomy table
 Tax.df$pathString <- paste(Tax.df$Rank1, Tax.df$Rank2, Tax.df$Rank3, Tax.df$Rank4, Tax.df$Rank5, Tax.df$Rank6, sep = "|") # taxonomic rank
@@ -196,18 +200,19 @@ tree.vis <- as.phylo(Tax.tree)
 
 ## QCAT Model 
 
-#### Fixed-effect Meta-analysis Method (Asymptotitc)
+#### Fixed-effect Meta-analysis Method 
 ```{r}
 ## Asymptotic p-value
 Method = "FE-VC"
-one_part_VC <- QCAT_Meta(otu.tab.lst, X , 1, Tax = Tax, Method = Method, n.perm = NULL)
+one_part_VC <- QCAT_Meta(otu.tab.lst, X , 1, Tax = Tax, Method = Method, n.perm = NULL, use.cpp = T)
 VC_sig_lineage <- one_part_VC$sig.lineage
 VC_sig_lineage <- str_replace_all(VC_sig_lineage," ", "_")
 #VC_sig_lineage <- VC_sig_lineage[VC_sig_lineage != "2_Bacteria"]
 tip_num = length(tree.vis$tip.label)
 
-# the index of the significant lineage
+# the index of significant lineage in the tree
 VC_sig_lineage <- unlist(lapply(1:length(VC_sig_lineage),function(X){tip_num+which(tree.vis$node.label == VC_sig_lineage[X])}))
+
 print(one_part_VC$sig.lineage) 
 ```
 
@@ -223,20 +228,21 @@ p <- ggtree(tree.vis, layout='circular') +
                 offset = 2.0, textcolor='black', barcolor='black', hjust= 0.5, vjust = -0.5 , fontsize=4) +
   geom_point2(aes(subset=(node %in% VC_sig_lineage)),shape=21,  size=3, fill='red')
 
-p + ggtitle("Significant lineage for FE-VC test (Asympotitc p-value)")
+p + ggtitle("Significant lineages for FE-VC test")
 ```
 
 #### Random-effect Meta-analysis Method (Permutation)
 ```{r}
 ## Asymptotic p-value
 Method = "Het-SKAT"
-one_part_Het <- QCAT_Meta(otu.tab.lst, X , 1, Tax = Tax, Method = Method, n.perm = 450)
+one_part_Het <- QCAT_Meta(otu.tab.lst, X , 1, Tax = Tax, Method = Method, n.perm = 450, use.cpp = T)
 Het_sig_lineage <- one_part_Het$sig.lineage
 Het_sig_lineage <- str_replace_all(Het_sig_lineage," ", "_")
 #Het_sig_lineage <- Het_sig_lineage[Het_sig_lineage != "2_Bacteria"]
 
-# the index of the significant lineage
+# the index of significant lineage in the tree
 Het_sig_lineage <- unlist(lapply(1:length(Het_sig_lineage),function(X){tip_num+which(tree.vis$node.label == Het_sig_lineage[X])}))
+
 print(one_part_Het$sig.lineage) 
 ```
 
@@ -252,11 +258,14 @@ p <- ggtree(tree.vis, layout='circular') +
                 offset = 2.0, textcolor='black', barcolor='black', hjust= 0.5, vjust = 1, fontsize=2) +
   geom_point2(aes(subset=(node %in% Het_sig_lineage)),shape=21,  size=3, fill='red')
 
-p + ggtitle("Significant lineage for Het-SKAT test (Permutation p-value)")
+p + ggtitle("Significant lineages for Het-SKAT test")
 ```
-## QCAT_GEE Model 
+#### QCAT_GEE Model 
 
-## Rarefy the data
+#### Rarefy the data
+
+The excessive zero may lead to the inflation of type one error for QCAT_GEE test. Here I conduct rarefy method to eliminate the
+the negative influence of excessive zero. 
 
 ```{r}
 ## Rarefy
@@ -295,24 +304,25 @@ otu.tab.lst <- lapply(otu.tab.lst,function(X){Rarefy(X)$otu.tab.rff})
 
 ```
 
-#### Random-effect Meta-analysis Method (Asymptotitc)
+#### Random-effect Meta-analysis Method
 
 ```{r}
 ## Permutation p-value
-zero_part_RE <- QCAT_GEE_Meta(otu.tab.lst, X , 1, Tax = Tax, Method = "RE-SKAT", n.perm = 300)
+zero_part_RE <- QCAT_GEE_Meta(otu.tab.lst, X , 1, Tax = Tax, Method = "RE-SKAT", n.perm = 300, use.cpp = T)
 RE_sig_lineage <- zero_part_RE$sig.lineage
 RE_sig_lineage <- str_replace_all(RE_sig_lineage," ", "_")
 #RE_sig_lineage <- RE_sig_lineage[RE_sig_lineage != "2_Bacteria"]
 tip_num = length(tree.vis$tip.label)
 
-# the index of the significant lineage
+# the index of the significant lineage in the tree
 RE_sig_lineage <- unlist(lapply(1:length(RE_sig_lineage),function(X){tip_num+which(tree.vis$node.label == RE_sig_lineage[X])}))
+
 print(zero_part_RE$sig.lineage) 
 ```
 
 ```{r fig.width= 4, fig.height= 4, fig.align='center', dpi=450}
 
-## Visualize  some of the significant lineage                                        
+## Visualize part of the significant lineages                                        
 p <- ggtree(tree.vis, layout='circular') +
   geom_hilight(node=158, fill="steelblue", alpha= 0.6) +
   geom_hilight(node=174, fill="steelblue", alpha= 0.6) +
@@ -340,5 +350,7 @@ p <- ggtree(tree.vis, layout='circular') +
                 offset = 2.0, textcolor='black', barcolor='black', hjust= 0.5, vjust = -0.5 , fontsize=4) +
   geom_point2(aes(subset=(node %in% c(174,216,214,154,158,190,178,237,134))),shape=21,  size=3, fill='red')
 
-p + ggtitle("Significant lineage for zero part RE-SKAt test (Permutation p-value)")
+p + ggtitle("Significant lineages for zero part RE-SKAt test")
 ```
+
+## References:
