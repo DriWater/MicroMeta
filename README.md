@@ -12,8 +12,8 @@ the covariate-associated lineages.
 
 *MicroMeta* comes with four datasets: data.meta, count.genus, meta and
 tax. The data.meta dataset follows the structure of *QCAT_Meta* and
-*QCAT_GEE_Meta* functions are designed. And data.meta\$OTU and
-data.meta\$covariate are both lists contains 5 elements which are the
+*QCAT_GEE_Meta* functions are designed. And *data.meta\$OTU* and
+*data.meta\$covariate* are both lists contains 5 elements which are the
 OTU counts and covariate of interest from different sources. Meanwhile,
 data.meta, count.genus, meta and tax are the raw data sets of data.meta.
 
@@ -55,13 +55,13 @@ one_part_MV
 
 ``` r
 Method = "Het-SKAT"
-one_part_Het <- QCAT_Meta(data.meta$OTU, data.meta$covariate, 1, Tax = NULL, Method = Method, n.perm = 1000, use.cpp = T)
+one_part_Het <- QCAT_Meta(data.meta$OTU, data.meta$covariate, 1, Tax = NULL, Method = Method, n.perm = 100, use.cpp = T)
 one_part_Het
 ```
 
 For OTU table with excessive zero counts, we also employ the generalized
-estimating equation (GEE) method to estimate the zero part of estimate
-equations.
+estimating equation (GEE)<sup>3</sup> method to estimate the zero part
+of estimate equations.
 
 ## QCAT_GEE_Meta
 
@@ -101,6 +101,15 @@ class="csl-right-inline">Lee S, Teslovich TM, Boehnke M, Lin X. General
 framework for meta-analysis of rare variants in sequencing association
 studies. *The American Journal of Human Genetics* 2013; **93**:
 42–53.</span>
+
+</div>
+
+<div id="ref-zeger1986longitudinal" class="csl-entry">
+
+<span class="csl-left-margin">3 </span><span
+class="csl-right-inline">Zeger SL, Liang K-Y. Longitudinal data analysis
+for discrete and continuous outcomes. *Biometrics* 1986; :
+121–30.</span>
 
 </div>
 
