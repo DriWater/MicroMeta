@@ -27,6 +27,7 @@ Suggests:
     ggtree,
     HMP,
     knitr,
+    microbenchmark,
     rmarkdown,
     stringr
 VignetteBuilder: knitr
