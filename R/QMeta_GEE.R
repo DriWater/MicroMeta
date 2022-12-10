@@ -765,7 +765,7 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth
   #   stop("The taxa in each study should be the same")
   # }
   if(Method %in% c("RE-SKAT", "Het-SKAT")){
-    if(is.null(n.perm)){
+    if(is.null(n.resample)){
       stop("The p-value for random effect meta-analysis method must be got by resampling test")
     }
   }
@@ -838,7 +838,7 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth
       pval.zero = as.matrix( tmp$score.pvalue )
       colnames(pval.zero) = paste0("Asymptotic-",Method)
     }else{
-      tmp = .Score.test.zero.meta(count, Z, Z.index, seed=11, resample=TRUE, n.replicates=NULL, use.cpp = use.cpp, Method = Method)
+      tmp = .Score.test.zero.meta(count, Z, Z.index, seed=11, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = Method)
       if(Method %in% c("RE-SKAT", "Het-SKAT")){
         pval.zero = c(tmp$score.Rpvalue)
         names(pval.zero) = paste0("Resampling-",Method)

@@ -279,10 +279,10 @@
     #         Beta part: resampling Score test        #
     #                                                 #
     ###################################################
-    Score.reduce.beta.perm.reorg <- cbind(matrix(Score.reduce.beta.perm[, par.interest.index.beta], ncol = n.par.interest.beta), matrix(Score.reduce.beta.perm[, -par.interest.index.beta], ncol = n.beta - n.par.interest.beta))
+    Score.reduce.beta.perm.reorg <- cbind(matrix(Score.reduce.beta.perm[, par.interest.index.beta], ncol = n.par.beta.interest), matrix(Score.reduce.beta.perm[, -par.interest.index.beta], ncol = n.beta - n.par.beta.interest))
     Hess.reduce.beta.perm.reorg <- rbind(
-      cbind(matrix(Hess.reduce.beta.perm[par.interest.index.beta, par.interest.index.beta], nrow = n.par.interest.beta), matrix(Hess.reduce.beta.perm[par.interest.index.beta, -par.interest.index.beta], nrow = n.par.interest.beta)),
-      cbind(matrix(Hess.reduce.beta.perm[-par.interest.index.beta, par.interest.index.beta], nrow = n.beta - n.par.interest.beta), matrix(Hess.reduce.beta.perm[-par.interest.index.beta, -par.interest.index.beta], nrow = n.beta - n.par.interest.beta))
+      cbind(matrix(Hess.reduce.beta.perm[par.interest.index.beta, par.interest.index.beta], nrow = n.par.beta.interest), matrix(Hess.reduce.beta.perm[par.interest.index.beta, -par.interest.index.beta], nrow = n.par.beta.interest)),
+      cbind(matrix(Hess.reduce.beta.perm[-par.interest.index.beta, par.interest.index.beta], nrow = n.beta - n.par.beta.interest), matrix(Hess.reduce.beta.perm[-par.interest.index.beta, -par.interest.index.beta], nrow = n.beta - n.par.beta.interest))
     )
 
 
