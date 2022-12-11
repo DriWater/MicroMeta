@@ -300,7 +300,7 @@
     # Generate the test statistics for each study
     score.stat.beta.perm <- crossprod( A, crossprod(t(ginv(B)), A))
     score.stat.beta <- append(score.stat.beta, score.stat.beta.perm)
-    score.beta[[j]] <- A
+    score.beta[[j]] <- A # restore the score statistics and estimated covariance matrix in lists which are of necessity for some meta-analysis methods
     est.cov[[j]] <- B
     score.pvalue.beta <- append(score.pvalue.beta, (1 - pchisq(score.stat.beta.perm, n.par.interest.beta)))
   }
@@ -310,7 +310,7 @@
   est.cov.meta <- matrix(0, nrow = n.par.interest.beta, ncol = n.par.interest.beta)
   for (i in 1:stu.num)
   {
-    idx <- col.index.list[[i]] # specify the interested parameter index for each study
+    idx <- col.index.list[[i]] # specify the interested parameters' index for each study
     score.beta.meta[idx] <- score.beta.meta[idx] + score.beta[[i]]
     est.cov.meta[idx, idx] <- est.cov.meta[idx, idx] + est.cov[[i]]
   }
@@ -343,7 +343,7 @@
     for( i in 1:stu.num ){
       est.inv = ginv(est.cov[[i]])
       U.tau.b = U.tau.b + tcrossprod(crossprod(score.beta[[i]],est.inv), crossprod(score.beta[[i]], est.inv))
-      a2 = a2 + sum(diag(crossprod(t(est.inv),est.inv)))
+      a2 = a2 + sum(diag(crossprod(t(est.inv),est.inv))) # when \tau matrix and W matrix is identity the elements in upper left, bottom right as well as bottom left are the same in RE-SKAT test
     }
     a1 = sum(diag(crossprod(t(est.cov.inv),est.cov.inv)))
     U.tau.b = 1/2 * U.tau.b + 1/2 * sum(diag(est.cov.inv))
@@ -362,6 +362,7 @@
   score.beta.meta = tmp$score_beta_meta
   est.cov = tmp$est_cov
   score.beta = tmp$score_beta
+  # save the index of those elements that have values greater than zero in score.beta.meta vector
   save.index.pos = which(abs(score.beta.meta) >= 1e-7)
   score.beta.meta = score.beta.meta[save.index.pos]
   est.cov.meta = est.cov.meta[save.index.pos,save.index.pos]
@@ -485,6 +486,7 @@
     df = NA
 
   }else{
+    # initialize for later use
     score.stat.beta = NULL
     score.beta = NULL
     score.pvalue.beta = NULL
@@ -527,6 +529,7 @@
         S.beta.list.meta = S.beta.list.meta
         I.beta.list.meta = I.beta.list.meta
       }else{
+        # number of study which can get score statistics
         j = j+1
         # get the index for parameter of interest after score statistics and estimate covariance matrix are reorginzed
         # different across studies because of different column numbers
@@ -549,7 +552,8 @@
       X.list = X.list[-remove.index]
       Y.list = Y.list[-remove.index]
     }
-    save.index.pos = which(abs(score.beta.meta) >= 1e-7)
+    # save the index of those elements that have values greater than zero in score.beta.meta vector
+    save.index.pos = which(abs(score.beta.meta) >= 1e-7) # the length of index is the total number of beta parameters which we are used in our meta-analysis
     n.par.save.beta = length(save.index.pos)
     score.beta.meta = score.beta.meta[save.index.pos]
     est.cov.meta = est.cov.meta[save.index.pos,save.index.pos]
@@ -601,6 +605,7 @@
       for( i in 1:j ){
         est.inv = ginv(est.cov[[i]])
         U.tau.b = U.tau.b + tcrossprod(crossprod(score.beta[[i]],est.inv), crossprod(score.beta[[i]], est.inv))
+        # when \tau matrix and W matrix is identity the elements in upper left, bottom right as well as bottom left are the same in RE-SKAT test
         a2 = a2 + sum(diag(crossprod(t(est.inv),est.inv)))
       }
       a1 = sum(diag(crossprod(t(est.cov.inv),est.cov.inv)))

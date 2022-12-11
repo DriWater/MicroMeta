@@ -285,13 +285,13 @@
     score.alpha[[j]] = A # restore the score statistics and estimated covariance matrix in lists which are of necessity for some meta-analysis methods
     est.cov.zero[[j]] = B
     score.pvalue.alpha = append(score.pvalue.alpha, (1 - pchisq(score.stat.alpha.perm, n.par.interest.alpha)))
-    idx = col.zero.index.list[[j]] # the index of beta parameter of interest in j-th study
+    idx = col.zero.index.list[[j]] # the index of alpha parameter of interest in j-th study
     score.alpha.meta[idx] =  score.alpha.meta[idx] +  A # add according to the index of parameter of interest for each study
     est.cov.meta[idx, idx] =  est.cov.meta[idx, idx] + B
   }
   # save the index of those elements that have values greater than zero in score.aplha.meta vector
   save.index.zero = which(abs(score.alpha.meta) >= 1e-7)
-  n.par.save.alpha = length(save.index.zero) # the length of index is the total number of beta parameter which we are used in our meta-analysis
+  n.par.save.alpha = length(save.index.zero) # the length of index is the total number of alpha parameter which we are used in our meta-analysis
   score.alpha.meta =  score.alpha.meta[save.index.zero]
   est.cov.meta =  est.cov.meta[save.index.zero,save.index.zero] # the summation of  estimate covariance for each study
   est.cov.inv = ginv(est.cov.meta)
@@ -443,6 +443,8 @@
   }
 
   # adaptive adjust the total number of iterations according to the number of resampling statistics which are more extreme than the original one in each loop
+  # if the total number of permutation results which are greater than original results too small, enlarge the
+  # number of total iterations
   if(zero.acc.new < 1){
     next.end.nperm = (end.nperm + 1) * 100 - 1;
     flag = 1;
@@ -554,9 +556,10 @@
       }else{
         # number of study which can get score statistics
         n.zero = n.zero + 1
-        # the index of parameter of interest may be different across studies because some columns of the OTU table of some study may be dropped
+        # get the index for parameter of interest after score statistics and estimate covariance matrix are reorginzed
+        # different across studies because of different column numbers
         idx = kronecker((col.zero.index-1)*p.par, rep(1,p.par)) + c(1:p.par)
-        col.zero.index.list[[n.zero]] = idx
+        col.zero.index.list[[n.zero]] = idx  # the index of alpha parameter of interest in this study
         # save these outcome in list form for later meta-analysis as well as resampling test
         score.stat.alpha = append(score.stat.alpha, tmp.zero$score.stat.alpha)
         score.alpha[[n.zero]] = tmp.zero$score.alpha
@@ -576,7 +579,7 @@
       Z.list = Z.list[-remove.index]
       Y0.list = Y0.list[-remove.index]
     }
-    #
+    # save the index of those elements that have values greater than zero in score.aplha.meta vector
     save.index.zero = which(abs(score.alpha.meta) >= 1e-7)
     n.par.save.alpha = length(save.index.zero)
     score.alpha.meta = score.alpha.meta[save.index.zero]
@@ -665,6 +668,7 @@
     zero.results = list(score.stat = score.stat.zero.meta, score.pvalue = score.pvalue.zero, df = df.zero)
   }
   # if resample = TRUE then will apply permutation method to get permuted p-value
+  # adaptive resampling test
   if(resample){
 
     #print("simulated stat:")
@@ -811,10 +815,12 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth
   OTU.comb[is.na(OTU.comb)] <- 0
   OTU.comb <- as.matrix(OTU.comb)
   if(!is.null(Tax)){
+    # preserve those columns which have taxonomy information
     col.save = intersect(Tax$Rank6,colnames(OTU.comb))
     OTU.comb = OTU.comb[,colnames(OTU.comb) %in% col.save]
     Tax = Tax[Tax$Rank6 %in% col.save,]
   }
+  # divide the combined OTU table according to the number of observations for each study
   batch.cnt <- unlist(lapply(OTU, function(x) nrow(x)))
   batch.cnt <- append(1,batch.cnt)
   batch.cnt <- cumsum(batch.cnt)
@@ -856,6 +862,7 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth
     }
 
     n.rank = ncol(tax)
+    #merge the tax and count together for later partition and merge OTU table according to taxonomy information
     W.data.list = lapply(1:n.OTU,function(j) data.table(data.frame(tax, t(count[[j]]))))
     otucols = lapply(1:n.OTU,function(j) names(W.data.list[[j]])[-(1:n.rank)])
     n.level = n.rank-1
@@ -872,7 +879,7 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth
       tmp = table(tax[,n.rank-k])
       level.uni = sort( names(tmp)[which(tmp>1)] )
       m.level = length(level.uni)
-
+      # partition and merge OTU table according to taxonomy information
       tt = lapply(1:n.OTU, function(j) W.data.list[[j]][, lapply(.SD , sum, na.rm=TRUE), .SDcols=as.vector(unlist(otucols[j])), by=list( get(Rank.low), get(Rank.high) )])
       tt = lapply(1:n.OTU,function(j) setnames(tt[[j]], 1:2, c(Rank.low, Rank.high)))
       W.tax = as.vector(unlist(tt[[1]][, Rank.low, with=FALSE]))
@@ -906,11 +913,13 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth
 
           subtree = c(subtree, level.uni[j])
           if(is.null(n.resample)){
+            #  run test for each lineage
             tmp = .Score.test.zero.meta(Y, Z, Z.index, seed=11, resample=FALSE, n.replicates=n.resample, Method = Method)
             pval.zero = cbind(pval.zero, tmp$score.pvalue)
           }
           else{
-
+            # if n.resample in not null, select the significant lineage according to the resampling pvalue
+            #  run test for each lineage
             if(Method %in% c("RE-SKAT", "Het-SKAT")){
               tmp = .Score.test.zero.meta(Y, Z, Z.index, seed=11, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = Method)
               pval.zero = cbind(pval.zero, tmp$score.Rpvalue)
@@ -949,6 +958,7 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth
   subtree.tmp = subtree
   index.na = which(is.na(score.zero.tmp))
   if(length(index.na)>0){
+    # drop those lineages which have NA values
     score.zero.tmp = score.zero.tmp[-index.na]
     subtree.tmp = subtree.tmp[-index.na]
   }
@@ -970,7 +980,7 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth
   }
 
   sig.lineage = subtree.tmp[reject==1]
-
+  # return all the p-values as well as significant lineages
   return( list(lineage.pval=pval.zero, sig.lineage=sig.lineage) )
 
 }
