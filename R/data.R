@@ -14,7 +14,7 @@
 #' @format A 574 x 133 Matrix
 #' \describe{
 #'    \item{rownames}{sample id}
-#'    \item{colnames}{generic name for each taxa conut }
+#'    \item{colnames}{generic name for each taxa}
 #' }
 "count.genus"
 
@@ -30,7 +30,7 @@
 #'    \item{Gender}{Gender, F or M}
 #'    \item{BMI}{BMI for each observation}
 #'     ...
-#'    \item{Group}{Denote each group belongs to case or control group}
+#'    \item{Group}{Sample belongs to case or control group}
 #'     ...
 #' }
 "meta"
@@ -42,11 +42,11 @@
 #' @format A dataframe
 #' \describe{
 #'    \item{OTUID}{id}
-#'    \item{kingdom}{the scientific name for the kingdom that the taxa belongs}
-#'    \item{phylum}{the scientific name for the phylum that the taxa belongs}
-#'    \item{class}{the scientific name for the class that the taxa belongs}
-#'    \item{order}{the scientific name for the order that the taxa belongs}
-#'    \item{family}{the scientific name for the family that the taxa belongs}
+#'    \item{kingdom}{the scientific name of the kingdom that the taxa belongs to}
+#'    \item{phylum}{the scientific name of the phylum that the taxa belongs to}
+#'    \item{class}{the scientific name of the class that the taxa belongs to}
+#'    \item{order}{the scientific name of the order that the taxa belongs to}
+#'    \item{family}{the scientific name of the family that the taxa belongs to}
 #'    \item{genus}{generic name for each taxa conut}
 #'    \item{mOTU}{mOTU}
 #' }
