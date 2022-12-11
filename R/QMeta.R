@@ -6,11 +6,6 @@
   return(1 - pchisq(x.stat, df = 2 * length(x)))
 }
 
-.simes.test <- function(x) {
-  return(min(length(x) * x / rank(x)))
-}
-
-
 ########################################
 #                                      #
 #           One Part Model             #
@@ -58,7 +53,7 @@
     }
   }
 
-  return(-loglik)
+  return(-loglik) # return the log likelihood of beta
 }
 
 .fun.neg.score.beta <- function(beta, data) {
@@ -88,7 +83,7 @@
       P.i <- E.i / sum.E.i
       Score.beta <- Score.beta + kronecker(matrix(Y[i, -m] - nY[i] * P.i[-m], ncol = 1), matrix(X[i, ], ncol = 1))
     }
-
+    #  the negative score value for beta function (vector form) (for later optimize function use)
     return(-Score.beta)
   }
 }
@@ -114,7 +109,7 @@
       E.i <- .Ei.beta(m, p, beta, X[i, ], Y[i, ])
       sum.E.i <- sum(E.i)
       P.i <- E.i / sum.E.i
-
+      #  the score value for beta function (matrix form) (only for parameter of interest)
       Score.beta.i[i, ] <- kronecker(matrix(Y[i, -m] - nY[i] * P.i[-m], ncol = 1), matrix(X[i, ], ncol = 1))
     }
 
@@ -159,6 +154,7 @@
 
 
     if (save.list) {
+      # if save.list = TRUE, this will be used for resampling test
       return(list(Hessian.beta = Hessian.beta, I.beta.list = I.beta.list))
     } else {
       return(Hessian.beta)
@@ -203,6 +199,8 @@
 
 
     data.beta <- list(Y = Y, X = X)
+
+    # Calculate the Score value for beta parameter of interest
     Score.reduce.beta <- .fun.score.i.beta(est.reduce.beta, data.beta)
 
     # for resampling: S.beta.list, I.beta.list
@@ -342,20 +340,16 @@
   if(Method == "RE-SKAT"){
     U.tau.b = 0
     a2 = 0
-    a3 = 0
-    a4 = 0
     for( i in 1:stu.num ){
       est.inv = ginv(est.cov[[i]])
       U.tau.b = U.tau.b + tcrossprod(crossprod(score.beta[[i]],est.inv), crossprod(score.beta[[i]], est.inv))
       a2 = a2 + sum(diag(crossprod(t(est.inv),est.inv)))
-      a3 = a3 + sum(diag(crossprod(t(est.inv),est.inv)))
-      a4  = a4 + sum(diag(crossprod(t(est.inv),est.inv)))
     }
     a1 = sum(diag(crossprod(t(est.cov.inv),est.cov.inv)))
     U.tau.b = 1/2 * U.tau.b + 1/2 * sum(diag(est.cov.inv))
     U.tau.w = 1/2 * crossprod( score.beta.meta, crossprod(t(est.cov.inv), crossprod( t(est.cov.inv), score.beta.meta)))
     + 1/2 * sum(diag(est.cov.inv))
-    score.stat.meta.perm = crossprod(c(U.tau.w, U.tau.b), crossprod(1/2 * matrix(c(a1,a2,a3,a4),ncol = 2), c(U.tau.w, U.tau.b)))
+    score.stat.meta.perm = crossprod(c(U.tau.w, U.tau.b), crossprod(1/2 * matrix(c(a1,a2,a2,a2),ncol = 2), c(U.tau.w, U.tau.b)))
   }
 
   return(as.numeric(score.stat.meta.perm))  # return the test statistics
@@ -405,20 +399,16 @@
   if(Method == "RE-SKAT"){
     U.tau.b = 0
     a2 = 0
-    a3 = 0
-    a4 = 0
     for( i in 1:stu.num ){
       est.inv = ginv(est.cov[[i]])
       U.tau.b = U.tau.b + tcrossprod(crossprod(score.beta[[i]],est.inv), crossprod(score.beta[[i]], est.inv))
       a2 = a2 + sum(diag(crossprod(t(est.inv),est.inv)))
-      a3 = a3 + sum(diag(crossprod(t(est.inv),est.inv)))
-      a4  = a4 + sum(diag(crossprod(t(est.inv),est.inv)))
     }
     a1 = sum(diag(crossprod(t(est.cov.inv),est.cov.inv)))
     U.tau.b = 1/2 * U.tau.b + 1/2 * sum(diag(est.cov.inv))
     U.tau.w = 1/2 * crossprod( score.beta.meta, crossprod(t(est.cov.inv), crossprod( t(est.cov.inv), score.beta.meta)))
     + 1/2 * sum(diag(est.cov.inv))  #SKAT-VC
-    score.stat.meta.perm = crossprod(c(U.tau.w, U.tau.b), crossprod(1/2 * matrix(c(a1,a2,a3,a4),ncol = 2), c(U.tau.w, U.tau.b)))
+    score.stat.meta.perm = crossprod(c(U.tau.w, U.tau.b), crossprod(1/2 * matrix(c(a1,a2,a2,a2),ncol = 2), c(U.tau.w, U.tau.b)))
   }
   return(as.numeric(score.stat.meta.perm))
 }
@@ -538,6 +528,8 @@
         I.beta.list.meta = I.beta.list.meta
       }else{
         j = j+1
+        # get the index for parameter of interest after score statistics and estimate covariance matrix are reorginzed
+        # different across studies because of different column numbers
         idx = kronecker((col.index-2)*p.par, rep(1,p.par)) + c(1:p.par)
         col.index.list[[j]] = idx
         score.stat.beta = append(score.stat.beta, tmp.one$score.stat.beta)
@@ -606,25 +598,22 @@
     if(Method == "RE-SKAT"){
       U.tau.b = 0
       a2 = 0
-      a3 = 0
-      a4 = 0
       for( i in 1:j ){
         est.inv = ginv(est.cov[[i]])
         U.tau.b = U.tau.b + tcrossprod(crossprod(score.beta[[i]],est.inv), crossprod(score.beta[[i]], est.inv))
         a2 = a2 + sum(diag(crossprod(t(est.inv),est.inv)))
-        a3 = a3 + sum(diag(crossprod(t(est.inv),est.inv)))
-        a4  = a4 + sum(diag(crossprod(t(est.inv),est.inv)))
       }
       a1 = sum(diag(crossprod(t(est.cov.inv),est.cov.inv)))
       U.tau.b = 1/2 * U.tau.b + 1/2 * sum(diag(est.cov.inv))
       U.tau.w = 1/2 * crossprod( score.beta.meta, crossprod(t(est.cov.inv), crossprod( t(est.cov.inv), score.beta.meta)))
       + 1/2 * sum(diag(est.cov.inv)) #SKAT-VC
-      score.stat.meta = crossprod(c(U.tau.w, U.tau.b), crossprod(1/2 * matrix(c(a1,a2,a3,a4),ncol = 2), c(U.tau.w, U.tau.b)))
+      score.stat.meta = crossprod(c(U.tau.w, U.tau.b), crossprod(1/2 * matrix(c(a1,a2,a2,a2),ncol = 2), c(U.tau.w, U.tau.b)))
     }
   }
   beta.meta.results = list(score.stat = score.stat.meta, score.pvalue = score.pvalue, df = df)
 
   # if resample = TRUE then will apply permutation method to get permuted p-value
+  # adaptive resampling test
   if(resample){
 
     set.seed(seed)
@@ -666,7 +655,7 @@
       #        print("Number of resamplings too small for one-part test")
       #      }
 
-      tmp = (one.acc+1)/(n.one+1)
+      tmp = (one.acc+1)/(n.one+1) # to avoid n.one be zero # resampling p value
 
       #print(n.one)
       #print(one.acc)
@@ -687,11 +676,11 @@
 
 #' Title
 #'
-#' @param OTU a list of matrices contains OTU counts with each row corresponding to a sample and each column corresponding to an OTU or taxa. Each matrix's taxas are better to the same. The column name is mandatory.
+#' @param OTU a list of matrices containing OTU counts with each row corresponding to a sample and each column corresponding to an OTU or taxa. Each matrix's taxas are better to the same. The column name is mandatory.
 #' @param X a list of matrices containing covariates for the positive-part test with each column pertaining to one variable (pertains to the covariate of interest or the confounders). The number of elements of X and OTU must be the same. The column number of each matrix in this list must be the same.
 #' @param X.index a vector indicate the columns in X for the covariate(s) of interest.
 #' @param Tax a matrix defines the taxonomy ranks with each row corresponding to an OTU or a taxa and each column corresponding to a rank (starting from the higher taxonomic level). Row name is mandatory and should be consistent with the column name of the OTU table, Column name should be formatted as "Rank1", "Rank2 ()"... etc
-#'        If provided, tests will be performed for lineages based on the taxonomic rank. The output contains P-values for all lineages; a list of significant lineages controlling the false discovery rate (based on resampling p-value if resampling test was performed); p-values of the global tests (Fisher- and Simes-combined the p-values for testing lineages).
+#'        If provided, tests will be performed for lineages based on the taxonomic rank. The output contains P-values for all lineages; a list of significant lineages controlling the false discovery rate (based on resampling p-value if resampling test was performed).
 #'        If not provided, one test will be performed with all the OTUs and one p-value will be output.
 #' @param Method Meta-analysis method to be used. Including fixed effect methods such as the FE-MV test and FE-VC test and random effect methods like Het-SKAT and RE-SKAT test.
 #' @param min.depth keep samples with depths >= min.depth.
@@ -770,18 +759,20 @@ QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, 
   if(missing(X.index)){
     X.index = 1:ncol(X[[1]])
   }
-
+  # join all the OTU table
   OTU.comb = as.data.frame(OTU[[1]])
   for (i in 2:n.OTU){
     OTU.comb = bind_rows(OTU.comb,as.data.frame(OTU[[i]]))
   }
-  OTU.comb[is.na(OTU.comb)] <- 0
+  OTU.comb[is.na(OTU.comb)] <- 0 # substitute NA to zero (do not matter because those cloumns will de delete during calculation)
   OTU.comb <- as.matrix(OTU.comb)
   if(!is.null(Tax)){
+    # preserve those columns which have taxonomy information
     col.save = intersect(Tax$Rank6,colnames(OTU.comb))
     OTU.comb = OTU.comb[,colnames(OTU.comb) %in% col.save]
     Tax = Tax[Tax$Rank6 %in% col.save,]
   }
+  # divide the combined OTU table according to the number of observations for each study
   batch.cnt <- unlist(lapply(OTU, function(x) nrow(x)))
   batch.cnt <- append(1,batch.cnt)
   batch.cnt <- cumsum(batch.cnt)
@@ -827,6 +818,7 @@ QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, 
     }
 
     n.rank = ncol(tax)
+    #merge the tax and count together for later partition and merge OTU table according to taxonomy information
     W.data.list = lapply(1:n.OTU,function(j) data.table(data.frame(tax, t(count[[j]]))))
     otucols = lapply(1:n.OTU,function(j) names(W.data.list[[j]])[-(1:n.rank)])
     n.level = n.rank-1
@@ -842,7 +834,7 @@ QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, 
       tmp = table(tax[,n.rank-k])
       level.uni = sort( names(tmp)[which(tmp>1)] )
       m.level = length(level.uni)
-
+      # partition and merge OTU table according to taxonomy information
       tt = lapply(1:n.OTU, function(j) W.data.list[[j]][, lapply(.SD , sum, na.rm=TRUE), .SDcols=as.vector(unlist(otucols[j])), by=list( get(Rank.low), get(Rank.high) )])
       tt = lapply(1:n.OTU,function(j) setnames(tt[[j]], 1:2, c(Rank.low, Rank.high)))
       W.tax = as.vector(unlist(tt[[1]][, Rank.low, with=FALSE]))
@@ -885,10 +877,13 @@ QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, 
           #print(level.uni[j])
           if(is.null(n.resample)){ # asymptotic test only
             # (Y.list, X.list, X.par.index, seed=11, resample=FALSE, n.replicates=NULL, Method = "FE-MV", Weight=NULL )
+            #  run test for each lineage
             tmp = .Score.test.meta(Y, X, X.index, Method = Method)
             pval = cbind(pval, c(tmp$score.pvalue))
           }
           else{
+            # if n.resample in not null, select the significant lineage according to the resampling pvalue
+            #  run test for each lineage
             # (Y.list, X.list, X.par.index, seed=11, resample=FALSE, n.replicates=NULL, Method = "FE-MV", Weight=NULL )
             if(Method %in% c("RE-SKAT", "Het-SKAT")){
               tmp = .Score.test.meta(Y, X, X.index, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = Method)
@@ -927,6 +922,7 @@ QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, 
   subtree.tmp = subtree
   index.na = which(is.na(score.tmp))
   if(length(index.na)>0){
+    # drop those lineages which have NA values
     score.tmp = score.tmp[-index.na]
     subtree.tmp = subtree.tmp[-index.na]
   }
@@ -949,7 +945,7 @@ QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, 
 
   sig.lineage = subtree.tmp[reject==1]
 
-
+# return all the p-values as well as significant lineages
   return( list(lineage.pval=pval, sig.lineage=sig.lineage) )
 
 

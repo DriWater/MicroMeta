@@ -1,19 +1,14 @@
 # Zero part model
 
 .F.test <- function(x){
-
+  # Fisher's p-value combination
   x.stat = -2 * sum(log(x))
   return( 1 - pchisq(x.stat, df = 2 * length(x)) )
 }
 
-.simes.test <- function(x){
-
-  return( min(length(x) * x/rank(x)) )
-
-}
 
 .diag2 <- function(x){
-
+ # transform the numeric into diag matrix
   if(length(x)>1){
     return(diag(x))
   }else{
@@ -69,13 +64,13 @@
 
       Pi.i = .Pi.alpha(m, p, alpha, Z[i,])
       vA.tmp = Pi.i*(1-Pi.i)
-      A.i = .diag2(vA.tmp)
+      A.i = .diag2(vA.tmp) # transform into diagonal matrices
       t.D.i = kronecker( A.i, as.matrix(Z[i,], ncol=1) )
       V.i = A.i # independent cor structure
 
       tmp.V.i = ginv(V.i)
       tmp.VY = tmp.V.i %*% (Y[i,] - Pi.i)
-      Score.alpha.i[i,] = t.D.i %*% tmp.VY
+      Score.alpha.i[i,] = t.D.i %*% tmp.VY # score value
 
       if(save.list){
         vA.list[[i]] = vA.tmp
@@ -86,7 +81,7 @@
 
 
   }
-  # save list for later permutation method
+  # if save.list = TRUE, this will be used for resampling test
   if(save.list){
 
     return ( list(Score.alpha=Score.alpha.i, vA.list = vA.list, Vinv.list = Vinv.list, VY.list=VY.list) )
@@ -125,7 +120,7 @@
       t.D.i = kronecker( A.i, as.matrix(Z[i,], ncol=1) )
       V.i = A.i # independent cor structure
 
-
+      # the Hessian matrix for GEE model
       Hessian.alpha = Hessian.alpha + crossprod(t(t.D.i), tcrossprod(ginv(V.i), t.D.i))
 
 
@@ -141,7 +136,7 @@
 
 .Score.test.stat.zero <- function(Y0, Z, Z.par.index, cor.stru){
 
-
+  # Z.reduce preserve covariates that are not interested in
   Z.reduce = Z[,-Z.par.index,drop=FALSE]
   n = nrow(Y0)
   m = ncol(Y0)
@@ -176,6 +171,7 @@
   #data.full = data.frame(outcome=outcome, cova, id = id, row.names=NULL)
   data.reduce = data.frame(outcome=outcome, cova.reduce, id = id, row.names=NULL)
   #gee.full = geeglm(outcome ~ .  - id - 1, data = data.full, id = factor(id), family="binomial", corstr= "independence")
+  ## use geeglm to estimate the parameter not interested in
   gee.reduce = geeglm(outcome ~ . - id - 1, data = data.reduce, id = factor(id), family="binomial", corstr= "independence")
   #wald.test = anova(gee.full, gee.reduce)
 
@@ -185,12 +181,12 @@
   par.interest.index.alpha =  kronecker( ((0:(m-1))*p), rep(1,length(Z.par.index))) + Z.par.index
   n.par.interest.alpha = length(par.interest.index.alpha)
   est.reduce.alpha = rep(NA, n.alpha)
-  est.reduce.alpha[par.interest.index.alpha] = 0
+  est.reduce.alpha[par.interest.index.alpha] = 0 # set the est.reduce.aplha corresponding to parameters which are interested in to 0
   est.reduce.alpha[-par.interest.index.alpha] = coef(gee.reduce)
   est.reduce.scale = gee.reduce
 
   data.alpha = list(Y=Y0, Z=Z)
-
+  # estimate the Score statistics for parameter of interest
   tmp = .fun.score.i.alpha(est.reduce.alpha, data.alpha, save.list=TRUE)
   Score.reduce.alpha = tmp$Score.alpha
   # for resampling test
@@ -199,7 +195,7 @@
   VY.list = tmp$VY.list
 
   Hess.reduce.alpha =  .fun.hessian.alpha(est.reduce.alpha, data.alpha)
-  # re-organized the score statistics and Hessian matrix
+  # re-organized the score statistics and Hessian matrix according to the index of par.interest.index.alpha
   Score.reduce.reorg = cbind( matrix(Score.reduce.alpha[,par.interest.index.alpha], ncol=n.par.interest.alpha), matrix(Score.reduce.alpha[,-par.interest.index.alpha], ncol=n.alpha - n.par.interest.alpha) )
   Hess.reduce.reorg = rbind(cbind( matrix(Hess.reduce.alpha[par.interest.index.alpha, par.interest.index.alpha], nrow=n.par.interest.alpha), matrix(Hess.reduce.alpha[par.interest.index.alpha, -par.interest.index.alpha], nrow=n.par.interest.alpha) ),
                             cbind( matrix(Hess.reduce.alpha[-par.interest.index.alpha, par.interest.index.alpha], nrow=n.alpha - n.par.interest.alpha), matrix(Hess.reduce.alpha[-par.interest.index.alpha, -par.interest.index.alpha], nrow= n.alpha - n.par.interest.alpha)))
@@ -218,21 +214,21 @@
   score.stat.alpha = crossprod( A, crossprod(t(ginv(B)), A))
   score.pvalue.alpha = 1 - pchisq(score.stat.alpha, n.par.interest.alpha)
 
-
+  # save these outcomes for later resampling test
   return(list(score.df.alpha=n.par.interest.alpha, score.stat.alpha = score.stat.alpha, score.alpha = A, est.cov.zero=B, score.pvalue.alpha=score.pvalue.alpha, vA.list=vA.list, Vinv.list=Vinv.list, VY.list=VY.list )   )
 
 }
-
+# Get the permutation statistics  br R
 .Score.test.stat.zero.meta.4Gresampling <- function(Z.perm.list, Z.par.index, n.par.interest.alpha, col.zero.index.list, vA.list.meta, Vinv.list.meta, VY.list.meta, Method = "FE-MV"){
 
-  # W = W.zero
+  # the total study number
   iter.num = length(Z.perm.list)
   score.stat.alpha = NULL
   score.alpha = NULL
   score.pvalue.alpha = NULL
   est.cov.zero = NULL
-  score.alpha.meta  = rep(0,n.par.interest.alpha) ## A
-  est.cov.meta = matrix(0, nrow = n.par.interest.alpha, ncol = n.par.interest.alpha) ## B
+  score.alpha.meta  = rep(0,n.par.interest.alpha) ## create a vector which length is the number of parameter of interest to restore the score statistics for our meta analysis
+  est.cov.meta = matrix(0, nrow = n.par.interest.alpha, ncol = n.par.interest.alpha) ## ## create a matrix which dimension is the number of parameter of interest to restore the score statistics for our estimate of covariance matrix
   for ( j in 1:iter.num){
     vA.list = vA.list.meta[[j]]
     VY.list = VY.list.meta[[j]]
@@ -241,9 +237,13 @@
     p = ncol(Z.perm.list[[j]])
     m.alpha = length(vA.list[[1]])
     n.alpha = m.alpha*p
-    par.index.alpha =  kronecker( ((0:(m.alpha-1))*p), rep(1,length(Z.par.index))) + Z.par.index
+    # the index of parameter of interest for each study (different across studies becasue of different column number)
+    par.index.alpha =  kronecker( ((0:(m.alpha-1))*p), rep(1,length(Z.par.index))) + Z.par.index # the index of parameter of interest for each study
+    # the number of parameter of interest for each study
     n.par.alpha = length(par.index.alpha)
     n = nrow(Z.perm)
+
+    # initialize for later use
     Score.reduce.alpha.perm = matrix(0, n, n.alpha )
     Hess.reduce.alpha.perm = matrix(0, n.alpha, n.alpha )
 
@@ -256,14 +256,15 @@
       ###################################################
       tD.tmp = kronecker(.diag2(vA.list[[i]]), as.matrix(Z.perm[i,], ncol=1))
 
+      # the permutated score statistics
       Score.reduce.alpha.perm[i,] = Score.reduce.alpha.perm[i,] + crossprod(t(tD.tmp),VY.list[[i]])
-
+      # the permutated Hessian  matrix
       Hess.reduce.alpha.perm = Hess.reduce.alpha.perm + crossprod(t(tD.tmp), tcrossprod(Vinv.list[[i]], tD.tmp))
 
 
     }
 
-    # re-organized the score statistics and Hessian matrix
+    # re-organized the score statistics and Hessian matrix according the index of parameter of interest
     Score.reduce.reorg = cbind( matrix(Score.reduce.alpha.perm[,par.index.alpha], ncol=n.par.alpha), matrix(Score.reduce.alpha.perm[,-par.index.alpha], ncol=n.alpha - n.par.alpha) )
     Hess.reduce.reorg = rbind(cbind( matrix(Hess.reduce.alpha.perm[par.index.alpha, par.index.alpha], nrow=n.par.alpha), matrix(Hess.reduce.alpha.perm[par.index.alpha, -par.index.alpha], nrow=n.par.alpha) ),
                               cbind( matrix(Hess.reduce.alpha.perm[-par.index.alpha, par.index.alpha], nrow=n.alpha - n.par.alpha), matrix(Hess.reduce.alpha.perm[-par.index.alpha, -par.index.alpha], nrow= n.alpha - n.par.alpha)))
@@ -281,23 +282,23 @@
     B = crossprod(t(B1), tcrossprod(B2, B1))
     score.stat.alpha.perm = crossprod( A, crossprod(t(ginv(B)), A))
     score.stat.alpha = append(score.stat.alpha, score.stat.alpha.perm)
-    score.alpha[[j]] = A
+    score.alpha[[j]] = A # restore the score statistics and estimated covariance matrix in lists which are of necessity for some meta-analysis methods
     est.cov.zero[[j]] = B
     score.pvalue.alpha = append(score.pvalue.alpha, (1 - pchisq(score.stat.alpha.perm, n.par.interest.alpha)))
-    idx = col.zero.index.list[[j]]
-    score.alpha.meta[idx] =  score.alpha.meta[idx] +  A
+    idx = col.zero.index.list[[j]] # the index of beta parameter of interest in j-th study
+    score.alpha.meta[idx] =  score.alpha.meta[idx] +  A # add according to the index of parameter of interest for each study
     est.cov.meta[idx, idx] =  est.cov.meta[idx, idx] + B
   }
-
+  # save the index of those elements that have values greater than zero in score.aplha.meta vector
   save.index.zero = which(abs(score.alpha.meta) >= 1e-7)
-  n.par.save.alpha = length(save.index.zero)
+  n.par.save.alpha = length(save.index.zero) # the length of index is the total number of beta parameter which we are used in our meta-analysis
   score.alpha.meta =  score.alpha.meta[save.index.zero]
-  est.cov.meta =  est.cov.meta[save.index.zero,save.index.zero]
+  est.cov.meta =  est.cov.meta[save.index.zero,save.index.zero] # the summation of  estimate covariance for each study
   est.cov.inv = ginv(est.cov.meta)
   weight.cov.zero = NULL
   if (Method == "FE-MV")
   {
-    score.stat.alpha.perm = crossprod( score.alpha.meta, crossprod(t(est.cov.inv), score.alpha.meta)) #FE-Burden
+    score.stat.alpha.perm = crossprod( score.alpha.meta, crossprod(t(est.cov.inv), score.alpha.meta)) # Fixed effect multivariate test
   }
   # if (Method == "SKAT")
   # {
@@ -311,34 +312,30 @@
   {
     # weight.cov.zero = eigen(est.cov.inv)$values #eign.val/sum(eign.val)
     #
-    score.stat.alpha.perm = crossprod( score.alpha.meta, crossprod(t(est.cov.inv), crossprod( t(est.cov.inv), score.alpha.meta))) #SKAT-VC
+    score.stat.alpha.perm = crossprod( score.alpha.meta, crossprod(t(est.cov.inv), crossprod( t(est.cov.inv), score.alpha.meta))) #Fixed effect variance component test
   }
   if(Method == "Het-SKAT"){
-    #W = diag(1,nrow = n.par.interest.beta)
     score.stat.alpha.perm = 0
 
     for( i in 1:iter.num ){
       est.inv = ginv(est.cov.zero[[i]])
-      score.stat.alpha.perm = score.stat.alpha.perm + tcrossprod(crossprod(score.alpha[[i]], est.inv), crossprod(score.alpha[[i]], est.inv))
+      score.stat.alpha.perm = score.stat.alpha.perm + tcrossprod(crossprod(score.alpha[[i]], est.inv), crossprod(score.alpha[[i]], est.inv)) # Het-SKAT test
     }
   }
-  if(Method == "RE-SKAT"){
+  if(Method == "RE-SKAT"){ # RE-SKAT test
     U.tau.b = 0
     a2 = 0
-    a3 = 0
-    a4 = 0
     for( i in 1:iter.num ){
       est.inv = ginv(est.cov.zero[[i]])
       U.tau.b = U.tau.b + tcrossprod(crossprod(score.alpha[[i]],est.inv), crossprod(score.alpha[[i]], est.inv))
-      a2 = a2 + sum(diag(crossprod(t(est.inv),est.inv)))
-      a3 = a3 + sum(diag(crossprod(t(est.inv),est.inv)))
-      a4  = a4 + sum(diag(crossprod(t(est.inv),est.inv)))
+      a2 = a2 + sum(diag(crossprod(t(est.inv),est.inv))) # when \tau matrix and W matrix is identity the elements in upper left, bottom right as well as bottom left are the same in RE-SKAT test
     }
     a1 = sum(diag(crossprod(t(est.cov.inv),est.cov.inv)))
     U.tau.b = 1/2 * U.tau.b + 1/2 * sum(diag(est.cov.inv))
     U.tau.w = 1/2 * crossprod( score.alpha.meta, crossprod(t(est.cov.inv), crossprod( t(est.cov.inv), score.alpha.meta)))
-    + 1/2 * sum(diag(est.cov.inv))  #SKAT-VC
-    score.stat.alpha.perm = crossprod(c(U.tau.w, U.tau.b), crossprod(1/2 * matrix(c(a1,a2,a3,a4),ncol = 2), c(U.tau.w, U.tau.b)))
+    + 1/2 * sum(diag(est.cov.inv))
+    # the score statistic for RE-SKAT test
+    score.stat.alpha.perm = crossprod(c(U.tau.w, U.tau.b), crossprod(1/2 * matrix(c(a1,a2,a2,a2),ncol = 2), c(U.tau.w, U.tau.b)))
   }
   # if (Method == "Fisher")
   # {
@@ -349,15 +346,14 @@
 
 }
 
-#Rcpp::List score_test_stat_meta_resampling_c(const Rcpp::List& Z_perm_list, const Rcpp::List& col_zero_index_list, const Rcpp::List& vA_list_meta, const Rcpp::List& Vinv_list_meta,
-#                                             const Rcpp::List& VY_list_meta, const arma::vec& Z_par_index,int n_par_interest_alpha)
-
+# Get the permutation statistics  br cpp
 .Score.test.stat.zero.meta.4Gresampling.c <- function(Z.perm.list, Z.par.index, n.par.interest.alpha, col.zero.index.list, vA.list.meta, Vinv.list.meta, VY.list.meta, Method = "FE-MV"){
   tmp = score_test_stat_zero_meta_resampling_c(Z.perm.list, col.zero.index.list, vA.list.meta, Vinv.list.meta, VY.list.meta, Z.par.index, n.par.interest.alpha)
   est.cov.meta = tmp$est_cov_meta
   score.alpha.meta = tmp$score_alpha_meta
   est.cov = tmp$est_cov
   score.alpha = tmp$score_alpha
+  # save the index of those elements that have values greater than zero in score.aplha.meta vector
   save.index.zero = which(abs(score.alpha.meta) >= 1e-7)
   score.alpha.meta = score.alpha.meta[save.index.zero]
   est.cov.meta = est.cov.meta[save.index.zero,save.index.zero]
@@ -365,7 +361,7 @@
   iter.num = length(Z.perm.list)
   if (Method == "FE-MV")
   {
-    score.stat.alpha.perm = crossprod(score.alpha.meta, crossprod(t(est.cov.inv), score.alpha.meta)) #FE-Burden
+    score.stat.alpha.perm = crossprod(score.alpha.meta, crossprod(t(est.cov.inv), score.alpha.meta)) # Fixed effect multivariate test
   }
   # if (Method == "SKAT")
   # {
@@ -378,7 +374,7 @@
   if (Method == "FE-VC")
   {
     #weight.cov.zero = eigen(est.cov.inv)$values #eign.val/sum(eign.val)
-    score.stat.alpha.perm = crossprod(score.alpha.meta, crossprod(t(est.cov.inv ), crossprod(t(est.cov.inv ), score.alpha.meta))) #SKAT-VC
+    score.stat.alpha.perm = crossprod(score.alpha.meta, crossprod(t(est.cov.inv ), crossprod(t(est.cov.inv ), score.alpha.meta))) #Fixed effect variance component test
   }
   # if (Method == "Fisher")
   # {
@@ -396,20 +392,17 @@
   if(Method == "RE-SKAT"){
     U.tau.b = 0
     a2 = 0
-    a3 = 0
-    a4 = 0
     for( i in 1:iter.num ){
       est.inv = ginv(est.cov[[i]])
       U.tau.b = U.tau.b + tcrossprod(crossprod(score.alpha[[i]],est.inv), crossprod(score.alpha[[i]], est.inv))
       a2 = a2 + sum(diag(crossprod(t(est.inv),est.inv)))
-      a3 = a3 + sum(diag(crossprod(t(est.inv),est.inv)))
-      a4  = a4 + sum(diag(crossprod(t(est.inv),est.inv)))
     }
     a1 = sum(diag(crossprod(t(est.cov.inv),est.cov.inv)))
     U.tau.b = 1/2 * U.tau.b + 1/2 * sum(diag(est.cov.inv))
     U.tau.w = 1/2 * crossprod( score.alpha.meta, crossprod(t(est.cov.inv), crossprod( t(est.cov.inv), score.alpha.meta)))
-    + 1/2 * sum(diag(est.cov.inv))  #SKAT-VC
-    score.stat.alpha.perm = crossprod(c(U.tau.w, U.tau.b), crossprod(1/2 * matrix(c(a1,a2,a3,a4),ncol = 2), c(U.tau.w, U.tau.b)))
+    + 1/2 * sum(diag(est.cov.inv))
+    # when \tau matrix and W matrix is identity the elements in upper left, bottom right as well as bottom left are the same in RE-SKAT test
+    score.stat.alpha.perm = crossprod(c(U.tau.w, U.tau.b), crossprod(1/2 * matrix(c(a1,a2,a2,a2),ncol = 2), c(U.tau.w, U.tau.b)))
   }
   return(list(score.stat.alpha.perm = as.numeric(score.stat.alpha.perm)))
 
@@ -430,7 +423,7 @@
       idx = sample(1:nrow(Z.list[[i]]))
       Z.perm.list[[i]][,Z.par.index] =  Z.perm.list[[i]][idx,Z.par.index]
     }
-    if(use.cpp){
+    if(use.cpp){ # if use.cpp = T, use Rcpp function to calculate this value
       tmp = try( .Score.test.stat.zero.meta.4Gresampling.c(Z.perm.list, Z.par.index,n.par.interest.alpha, col.zero.index.list, zero.vA.list.meta, zero.Vinv.list.meta, zero.VY.list.meta, Method = Method) )
     }
     else{
@@ -449,6 +442,7 @@
 
   }
 
+  # adaptive adjust the total number of iterations according to the number of resampling statistics which are more extreme than the original one in each loop
   if(zero.acc.new < 1){
     next.end.nperm = (end.nperm + 1) * 100 - 1;
     flag = 1;
@@ -484,6 +478,7 @@
   n = nrow(Y.list[[1]])
   p.zero = ncol(Z.list[[1]])
   n.OTU = length(Y.list)
+  # the total number of parameter of interest
   n.par.interest.alpha = m*length(Z.par.index)
   if(! Method %in% c("FE-MV","FE-VC",'Het-SKAT',"RE-SKAT")){
     stop("Error: Please Choose a Proper Meta-analysis Method")
@@ -500,7 +495,9 @@
   Y0.list = Y.list
   for(j in 1:n.OTU)
   {
+    # for each study set those value which are zero to 1
     Y0.list[[j]][Y.list[[j]]==0] = 1
+    # for each study set those value which are non-zero to 0
     Y0.list[[j]][Y.list[[j]]>0] = 0
   }
 
@@ -513,7 +510,7 @@
     df.zero = NA
 
   }else{
-
+    # initialize for later use
     score.pvalue.zero = NA
     score.stat.zero.meta = NA
     df.zero = NA
@@ -532,7 +529,7 @@
       Y0 = Y0.list[[i]]
       Z = Z.list[[i]]
       col.zero.index = which(apply(Y0, 2, function(x) length(table(x)) ) > 1)
-      Y0 = Y0[, col.zero.index , drop=FALSE]
+      Y0 = Y0[, col.zero.index , drop=FALSE] # only save those columns which have both 0 and 1 values
       if(length(col.zero.index)<1)
       {
         remove.index = append(remove.index,i)
@@ -555,11 +552,12 @@
         next
 
       }else{
+        # number of study which can get score statistics
         n.zero = n.zero + 1
-        # par.index.pos.list[[n.pos]] = kronecker(((0:(m-2))*p), rep(1,length(X1.par.index))) + X1.par.index
-        #par.index.zero.list[[n.zero]] = kronecker((col.zero.index - 1)*p.zero, rep(1,length(Z.par.index))) + Z.par.index
+        # the index of parameter of interest may be different across studies because some columns of the OTU table of some study may be dropped
         idx = kronecker((col.zero.index-1)*p.par, rep(1,p.par)) + c(1:p.par)
         col.zero.index.list[[n.zero]] = idx
+        # save these outcome in list form for later meta-analysis as well as resampling test
         score.stat.alpha = append(score.stat.alpha, tmp.zero$score.stat.alpha)
         score.alpha[[n.zero]] = tmp.zero$score.alpha
         est.cov.zero[[n.zero]] = tmp.zero$est.cov.zero
@@ -567,8 +565,8 @@
         zero.vA.list.meta[[n.zero]] = tmp.zero$vA.list
         zero.Vinv.list.meta[[n.zero]] = tmp.zero$Vinv.list
         zero.VY.list.meta[[n.zero]] = tmp.zero$VY.list
-        score.alpha.meta[idx] =  score.alpha.meta[idx] +  tmp.zero$score.alpha  #FE-Burden
-        est.cov.zero.meta[idx,idx] =  est.cov.zero.meta[idx,idx] + tmp.zero$est.cov.zero #FE-SKAT
+        score.alpha.meta[idx] =  score.alpha.meta[idx] +  tmp.zero$score.alpha
+        est.cov.zero.meta[idx,idx] =  est.cov.zero.meta[idx,idx] + tmp.zero$est.cov.zero
       }
     }
   }
@@ -578,6 +576,7 @@
       Z.list = Z.list[-remove.index]
       Y0.list = Y0.list[-remove.index]
     }
+    #
     save.index.zero = which(abs(score.alpha.meta) >= 1e-7)
     n.par.save.alpha = length(save.index.zero)
     score.alpha.meta = score.alpha.meta[save.index.zero]
@@ -585,7 +584,7 @@
     est.cov.zero.inv = ginv(est.cov.zero.meta)
     if (Method == "FE-MV")
     {
-      score.stat.zero.meta = score.alpha.meta %*% est.cov.zero.inv %*% score.alpha.meta #FE-Burden
+      score.stat.zero.meta = score.alpha.meta %*% est.cov.zero.inv %*% score.alpha.meta #Fixed effect multivarite test
       score.pvalue.zero = 1- pchisq(score.stat.zero.meta,df = n.par.save.alpha)
       df.zero = n.par.save.alpha
     }
@@ -610,7 +609,7 @@
     if (Method == "FE-VC"){
 
       weight.cov.zero = eigen(est.cov.zero.inv)$values
-      score.stat.zero.meta = score.alpha.meta %*% est.cov.zero.inv %*% est.cov.zero.inv %*% score.alpha.meta #SKAT-VC
+      score.stat.zero.meta = score.alpha.meta %*% est.cov.zero.inv %*% est.cov.zero.inv %*% score.alpha.meta # Fixed effect variance component test
       score.pvalue.zero = davies(score.stat.zero.meta, weight.cov.zero, h = rep(1,n.par.save.alpha), delta = rep(0,n.par.save.alpha), sigma = 0, lim = 10000, acc = 0.0001)$Qq
       score.pvalue.zero = ifelse(score.pvalue.zero>0,score.pvalue.zero,1e-7)
       df.zero = n.par.save.alpha
@@ -652,24 +651,20 @@
     if(Method == "RE-SKAT"){
       U.tau.b = 0
       a2 = 0
-      a3 = 0
-      a4 = 0
       for( i in 1:n.zero){
-        est.inv = ginv(est.cov.zero[[i]])
+        est.inv = ginv(est.cov.zero[[i]]) # calculate the generalized inverse for each estimate covariance for each study
         U.tau.b = U.tau.b + tcrossprod(crossprod(score.alpha[[i]],est.inv), crossprod(score.alpha[[i]], est.inv))
         a2 = a2 + sum(diag(crossprod(t(est.inv),est.inv)))
-        a3 = a3 + sum(diag(crossprod(t(est.inv),est.inv)))
-        a4  = a4 + sum(diag(crossprod(t(est.inv),est.inv)))
       }
       a1 = sum(diag(crossprod(t(est.cov.zero.inv),est.cov.zero.inv)))
       U.tau.b = 1/2 * U.tau.b + 1/2 * sum(diag(est.cov.zero.inv))
       U.tau.w = 1/2 * crossprod( score.alpha.meta, crossprod(t(est.cov.zero.inv), crossprod( t(est.cov.zero.inv), score.alpha.meta)))
-      + 1/2 * sum(diag(est.cov.zero.inv)) #SKAT-VC
-      score.stat.zero.meta = crossprod(c(U.tau.w, U.tau.b), crossprod(1/2 * matrix(c(a1,a2,a3,a4),ncol = 2), c(U.tau.w, U.tau.b)))
+      + 1/2 * sum(diag(est.cov.zero.inv))
+      score.stat.zero.meta = crossprod(c(U.tau.w, U.tau.b), crossprod(1/2 * matrix(c(a1,a2,a2,a2),ncol = 2), c(U.tau.w, U.tau.b)))
     }
     zero.results = list(score.stat = score.stat.zero.meta, score.pvalue = score.pvalue.zero, df = df.zero)
   }
-
+  # if resample = TRUE then will apply permutation method to get permuted p-value
   if(resample){
 
     #print("simulated stat:")
@@ -966,7 +961,7 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth
   p.sort = sort(score.zero.tmp)
   #fdr.alpha = 0.05
 
-  # change 04/17/2022
+  # change 12/10/2022
   reject = rep(0, m.test)
   tmp = which(p.sort<=(1:m.test)*fdr.alpha/m.test)
   if(length(tmp)>0){
