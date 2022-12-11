@@ -259,7 +259,7 @@ p <- ggtree(tree.vis, layout='circular') +
                 offset = 2.0, textcolor='black', barcolor='black', hjust= 0.5, vjust = 1, fontsize=2) +
   geom_point2(aes(subset=(node %in% Het_sig_lineage)),shape=21,  size=3, fill='red')
 
-p + ggtitle("Significant lineages for Het-SKAT test")
+p + ggtitle("Significant lineages")
 ```
 
 ## QCAT_GEE Model 
@@ -352,7 +352,7 @@ p <- ggtree(tree.vis, layout='circular') +
                 offset = 2.0, textcolor='black', barcolor='black', hjust= 0.5, vjust = -0.5 , fontsize=4) +
   geom_point2(aes(subset=(node %in% c(174,216,214,154,158,190,178,237,134))),shape=21,  size=3, fill='red')
 
-p + ggtitle("Significant lineages for zero part RE-SKAt test")
+p + ggtitle("Significant lineages")
 ```
 
 ## Using Rcpp will speed up the resampling test.
