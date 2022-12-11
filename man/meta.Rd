@@ -13,7 +13,7 @@ A dataframe
 \item{Gender}{Gender, F or M}
 \item{BMI}{BMI for each observation}
 ...
-\item{Group}{Denote each group belongs to case or control group}
+\item{Group}{Sample belongs to case or control group}
 ...
 }
 }

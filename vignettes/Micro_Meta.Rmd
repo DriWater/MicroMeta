@@ -78,7 +78,7 @@ its row corresponds to a sample and each column corresponds to an OTU or taxa. T
 ## Quick Start
 
 #### If you have not installed ggtree package, please run this chuck of code 
-```{r, eval = F}
+```{r, eval = F, message=FALSE}
 if (!require("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
 
@@ -251,7 +251,7 @@ print(one_part_Het$sig.lineage)
 
 ```{r fig.width= 4, fig.height= 4, fig.align='center', dpi=450}
 p <- ggtree(tree.vis, layout='circular') +
-  geom_hilight(node=174, fill="darkgreen", alpha= 0.6) +
+  geom_hilight(node=174, fill="steelblue", alpha= 0.6) +
   geom_hilight(node=154, fill="darkgreen", alpha= 0.6) +
   geom_cladelab(node=174, label="Peptoniphilaceae", align=TRUE,  angle=85,
                 offset = 2.0, textcolor='black', barcolor='black', hjust= 0.5, vjust = -0.5, fontsize=2) +

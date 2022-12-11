@@ -17,14 +17,14 @@ QCAT_GEE_Meta(
 )
 }
 \arguments{
-\item{OTU}{a list of matrices contains OTU counts with each row corresponding to a sample and each column corresponding to an OTU or taxa. Each matrix's taxas are better to the same. The column name is mandatory.}
+\item{OTU}{a list of matrices containing OTU counts with each row corresponding to a sample and each column corresponding to an OTU or taxa. Each matrix's taxas are better to the same. The column name is mandatory.}
 
 \item{Z}{a list of matrices contains covariates for the zero-part test with each column pertains to one variable (pertains to the covariate of interest or the confounders). The number of elements of Z and OTU must be the same. The column number of each matrix in this list must be the same.}
 
 \item{Z.index}{a vector indicate the columns in X for the covariate(s) of interest.}
 
 \item{Tax}{a matrix defines the taxonomy ranks with each row corresponding to an OTU or a taxa and each column corresponding to a rank (starting from the higher taxonomic level). Row name is mandatory and should be consistent with the column name of the OTU table, Column name should be formatted as "Rank1", "Rank2 ()"... etc
-If provided, tests will be performed for lineages based on the taxonomic rank. The output contains P-values for all lineages; a list of significant lineages controlling the false discovery rate (based on resampling p-value if resampling test was performed); p-values of the global tests (Fisher- and Simes-combined the p-values for testing lineages).
+If provided, tests will be performed for lineages based on the taxonomic rank. The output contains P-values for all lineages; a list of significant lineages controlling the false discovery rate (based on resampling p-value if resampling test was performed).
 If not provided, one test will be performed with all the OTUs and one p-value will be output.}
 
 \item{Method}{Meta-analysis method to be used. Including fixed effect methods such as the FE-MV test and FE-VC test and random effect methods like Het-SKAT and RE-SKAT test.}

@@ -8,7 +8,7 @@
 A 574 x 133 Matrix
 \describe{
 \item{rownames}{sample id}
-\item{colnames}{generic name for each taxa conut }
+\item{colnames}{generic name for each taxa}
 }
 }
 \usage{
