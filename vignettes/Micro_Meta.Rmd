@@ -32,7 +32,7 @@ the taxon counts.
 
 ## Functionality
 
-`MicroMeta` include two core functions: `QCAT_Meta` and `QCAT_GEE_Meta`, both of them provide various arguments for users to customize the fit: we introduce some commonly used arguments here. (For more information, type `?MicroMeta`.)
+`MicroMeta` include two core functions: `QCAT_Meta` and `QCAT_GEE_Meta`, both of them provide various arguments for users to customize the fit: we introduce some commonly used arguments here. (For more information, type `?QCAT_Meta` or `?QCAT_GEE_Meta`.)
 
 `QCAT_Meta` 
 
