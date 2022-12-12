@@ -11,11 +11,12 @@ provided, the tests will be performed on the taxonomic tree to localize
 the covariate-associated lineages.
 
 *MicroMeta* comes with four datasets: data.meta, count.genus, meta and
-tax. The data.meta dataset follows the structure of *QCAT_Meta* and
+tax. The data.meta data set follows the structure of *QCAT_Meta* and
 *QCAT_GEE_Meta* functions are designed. And *data.meta\$OTU* and
-*data.meta\$covariate* are both lists contains 5 elements which are the
-OTU counts and covariate of interest from different sources. Meanwhile,
-data.meta, count.genus, meta and tax are the raw data sets of data.meta.
+*data.meta\$covariate* are both lists containing 5 elements which are
+the OTU counts and covariate of interest from different sources.
+Meanwhile, data.meta, count.genus, meta and tax are the raw data sets of
+data.meta.
 
 ## Installation
 
@@ -31,7 +32,7 @@ devtools::install_github("DriWater/MicroMeta")
 devtools::install_github("DriWater/MicroMeta", build_vignettes = TRUE)
 ```
 
-## Example
+## Examples
 
 ``` r
 library(MicroMeta)
@@ -43,7 +44,7 @@ head(data.meta$covariate[[1]])
 
 ## QCAT_Meta
 
-##### Fixed effect Meta-analysis method based on QCAT test with asymptotic p-value. (Tax Provided)
+##### Fixed effect Meta-analysis method based on QCAT test with asymptotic p-value performed for all lineages.
 
 ``` r
 Method = "FE-MV"
@@ -51,7 +52,7 @@ one_part_MV <- QCAT_Meta(data.meta$OTU, data.meta$covariate, 1, Tax = data.meta$
 one_part_MV
 ```
 
-##### Random effect Meta-analysis method based on QCAT test with permutation p-value performed on lineage.
+##### Random effect Meta-analysis method based on QCAT test with resampling p-value performed with all the OTUs.
 
 ``` r
 Method = "Het-SKAT"
@@ -65,7 +66,7 @@ of estimate equations.
 
 ## QCAT_GEE_Meta
 
-##### Fixed effect Meta-analysis method based on QCAT_GEE test with asymptotic p-value performed on lineage.
+##### Fixed effect Meta-analysis method based on QCAT_GEE test with asymptotic p-value performed with all the OTUs.
 
 ``` r
 Method = "FE-VC"
@@ -73,7 +74,7 @@ zero_part_MV <- QCAT_GEE_Meta(data.meta$OTU, data.meta$covariate, 1, Tax = NULL,
 zero_part_MV 
 ```
 
-##### Random effect Meta-analysis method based on QCAT_GEE test with permutation p-value. (Tax provided)
+##### Random effect Meta-analysis method based on QCAT_GEE test with resampling p-value performed for all lineages.
 
 ``` r
 Method = "RE-SKAT"
