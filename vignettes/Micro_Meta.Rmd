@@ -197,6 +197,7 @@ tree.node.name <- Tax.tree$Get("name", traversal = "level")
 # tree.node.pval[!names(tree.node.pval)%in%colnames(one_part_VC$lineage.pval)] <- 1
 # Tax.tree$Set(rawp = tree.node.pval, traversal = "level")
 tree.vis <- as.phylo(Tax.tree)
+tip_num = length(tree.vis$tip.label)
 ```
 
 ## QCAT Model 
@@ -209,7 +210,6 @@ one_part_VC <- QCAT_Meta(otu.tab.lst, X , 1, Tax = Tax, Method = Method, n.perm 
 VC_sig_lineage <- one_part_VC$sig.lineage
 VC_sig_lineage <- str_replace_all(VC_sig_lineage," ", "_")
 #VC_sig_lineage <- VC_sig_lineage[VC_sig_lineage != "2_Bacteria"]
-tip_num = length(tree.vis$tip.label)
 
 # the index of significant lineage in the tree
 VC_sig_lineage <- unlist(lapply(1:length(VC_sig_lineage),function(X){tip_num+which(tree.vis$node.label == VC_sig_lineage[X])}))
