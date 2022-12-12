@@ -330,7 +330,6 @@
   #   score.stat.meta.perm <- -2 * sum(log(score.pvalue.beta)) # the Fisher's p-value combination
   # }
   if(Method == "Het-SKAT"){
-    #W = diag(1,nrow = n.par.interest.beta)
     score.stat.meta.perm = 0
     for( i in 1:stu.num ){
       est.inv = ginv(est.cov[[i]])
@@ -497,7 +496,7 @@
     S.beta.list.meta = list()
     I.beta.list.meta = list()
     col.index.list = list()
-    remove.index = c()
+    remove.index = NULL
     # initialize the score statistics and estimate covariance matrix for meta analysis
     score.beta.meta  = rep(0,n.par.interest.beta) ## A
     est.cov.meta = matrix(0, nrow = n.par.interest.beta, ncol = n.par.interest.beta) ## B
@@ -591,7 +590,6 @@
     #   df = length(score.pvalue.beta)
     # }
     if(Method == "Het-SKAT"){
-      # W = diag(1,nrow = n.par.interest.beta)
       score.stat.meta = 0
       for( i in 1:j ){
         est.inv = ginv(est.cov[[i]])
@@ -603,7 +601,7 @@
       U.tau.b = 0
       a2 = 0
       for( i in 1:j ){
-        est.inv = ginv(est.cov[[i]])
+        est.inv = ginv(est.cov[[i]])# calculate the generalized inverse for each estimate covariance for each study
         U.tau.b = U.tau.b + tcrossprod(crossprod(score.beta[[i]],est.inv), crossprod(score.beta[[i]], est.inv))
         # when \tau matrix and W matrix is identity the elements in upper left, bottom right as well as bottom left are the same in RE-SKAT test
         a2 = a2 + sum(diag(crossprod(t(est.inv),est.inv)))
@@ -749,7 +747,7 @@ QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, 
     }
 
     if(nrow(OTU[[i]])!=nrow(X[[i]])){
-      stop(paste0("Samples in the OTU table and the covariate table of study ", i,
+      stop(paste0("Number of samples in the OTU table and the covariate table of study ", i,
                   " should be the same\n"))
     }
     remove.subject = which(rowSums(OTU[[i]])<min.depth)
@@ -823,7 +821,7 @@ QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, 
     }
 
     n.rank = ncol(tax)
-    #merge the tax and count together for later partition and merge OTU table according to taxonomy information
+    # merge the tax and count together for later partition and merge OTU table according to taxonomy information
     W.data.list = lapply(1:n.OTU,function(j) data.table(data.frame(tax, t(count[[j]]))))
     otucols = lapply(1:n.OTU,function(j) names(W.data.list[[j]])[-(1:n.rank)])
     n.level = n.rank-1

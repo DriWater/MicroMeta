@@ -373,7 +373,6 @@
   # }
   if (Method == "FE-VC")
   {
-    #weight.cov.zero = eigen(est.cov.inv)$values #eign.val/sum(eign.val)
     score.stat.alpha.perm = crossprod(score.alpha.meta, crossprod(t(est.cov.inv ), crossprod(t(est.cov.inv ), score.alpha.meta))) #Fixed effect variance component test
   }
   # if (Method == "Fisher")
@@ -381,7 +380,6 @@
   #   score.stat.alpha.perm = -2 * sum(log(score.pvalue.alpha))
   # }
   if(Method == "Het-SKAT"){
-    #W = diag(1,nrow = n.par.interest.beta)
     score.stat.alpha.perm = 0
 
     for( i in 1:iter.num ){
@@ -430,11 +428,11 @@
       tmp = try( .Score.test.stat.zero.meta.4Gresampling(Z.perm.list, Z.par.index,n.par.interest.alpha, col.zero.index.list, zero.vA.list.meta, zero.Vinv.list.meta, zero.VY.list.meta, Method = Method) )
     }
 
-    if(!("try-error" %in% class(tmp))){
-
+    if(!("try-error" %in% class(tmp))){# if score.stat.alpha.perm exists, then n.one.new + 1
+      # if the permutation test statistics greater than original test statistics, cnt + 1
       n.zero.new = n.zero.new + 1
       if(tmp$score.stat.alpha.perm >= score.stat.zero.meta){
-        zero.acc.new = zero.acc.new + 1
+        zero.acc.new = zero.acc.new + 1 # if score.stat.alpha.perm >= score.stat.zero.meta one.acc.new + 1
 
       }
     }
@@ -485,6 +483,7 @@
   if(! Method %in% c("FE-MV","FE-VC",'Het-SKAT',"RE-SKAT")){
     stop("Error: Please Choose a Proper Meta-analysis Method")
   }
+  # check the parameters of interest to ensure the intercept term is not in it
   if (length(unique(sapply(1:n.OTU,function(j) ncol(Y.list[[j]]))))!=1){
     stop("Error: The taxon in each study should be the same")
   }
@@ -525,12 +524,13 @@
     zero.Vinv.list.meta = list()
     zero.VY.list.meta = list()
     col.zero.index.list = list()
+    # initialize the score statistics and estimate covariance matrix for meta analysis
     score.alpha.meta  = rep(0,n.par.interest.alpha) ## A
     est.cov.zero.meta = matrix(0, nrow = n.par.interest.alpha, ncol = n.par.interest.alpha) ## B
     for(i in 1:iter.num){
       Y0 = Y0.list[[i]]
       Z = Z.list[[i]]
-      col.zero.index = which(apply(Y0, 2, function(x) length(table(x)) ) > 1)
+      col.zero.index = which(apply(Y0, 2, function(x) length(table(x)) ) > 1) # keep those taxa which have both zero and one (both positive and zero observations)
       Y0 = Y0[, col.zero.index , drop=FALSE] # only save those columns which have both 0 and 1 values
       if(length(col.zero.index)<1)
       {
@@ -593,7 +593,6 @@
     }
     #if (Method == "SKAT")
     # {
-    #   W.zero = diag(1,nrow = n.par.interest.alpha)
     #   if(n.zero>0){
     #     eigen.cov.zero <- eigen(est.cov.zero.meta)
     #     eigen.cov.zero.sqrt = eigen.cov.zero$vectors %*% diag(sqrt(eigen.cov.zero$values),nrow = length(eigen.cov.zero$values)) %*% solve(eigen.cov.zero$vectors)
@@ -610,7 +609,6 @@
     #   zero.results = list(score.stat = score.stat.zero.meta, score.pvalue = score.pvalue.zero, df = df.zero)
     # }
     if (Method == "FE-VC"){
-
       weight.cov.zero = eigen(est.cov.zero.inv)$values
       score.stat.zero.meta = score.alpha.meta %*% est.cov.zero.inv %*% est.cov.zero.inv %*% score.alpha.meta # Fixed effect variance component test
       score.pvalue.zero = davies(score.stat.zero.meta, weight.cov.zero, h = rep(1,n.par.save.alpha), delta = rep(0,n.par.save.alpha), sigma = 0, lim = 10000, acc = 0.0001)$Qq
@@ -643,7 +641,6 @@
     #   zero.results = list(score.stat = score.stat.zero.meta, score.pvalue = score.pvalue.zero, df = df.zero)
     # }
     if(Method == "Het-SKAT"){
-      # W = diag(1,nrow = n.par.interest.alpha)
       score.stat.zero.meta = 0
       for( i in 1:n.zero){
         est.inv = ginv(est.cov.zero[[i]])
@@ -657,7 +654,7 @@
       for( i in 1:n.zero){
         est.inv = ginv(est.cov.zero[[i]]) # calculate the generalized inverse for each estimate covariance for each study
         U.tau.b = U.tau.b + tcrossprod(crossprod(score.alpha[[i]],est.inv), crossprod(score.alpha[[i]], est.inv))
-        a2 = a2 + sum(diag(crossprod(t(est.inv),est.inv)))
+        a2 = a2 + sum(diag(crossprod(t(est.inv),est.inv)))         # when \tau matrix and W matrix is identity the elements in upper left, bottom right as well as bottom left are the same in RE-SKAT test
       }
       a1 = sum(diag(crossprod(t(est.cov.zero.inv),est.cov.zero.inv)))
       U.tau.b = 1/2 * U.tau.b + 1/2 * sum(diag(est.cov.zero.inv))
@@ -708,7 +705,7 @@
 
       }
 
-      tmp = (zero.acc+1)/(n.zero+1)
+      tmp = (zero.acc+1)/(n.zero+1) # to avoid n.one be zero # resampling p value
 
 
     }else{
@@ -785,7 +782,7 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth
     }
 
     if(nrow(OTU[[i]])!=nrow(Z[[i]])){
-      stop(paste0("Samples in the OTU table and the covariate table for the zero part
+      stop(paste0("Number of samples in the OTU table and the covariate table for the zero part
                   of study ", i, " should be the same"))
     }
 
@@ -812,7 +809,7 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth
   for (i in 2:n.OTU){
     OTU.comb = bind_rows(OTU.comb,as.data.frame(OTU[[i]]))
   }
-  OTU.comb[is.na(OTU.comb)] <- 0
+  OTU.comb[is.na(OTU.comb)] <- 0 # substitute NA to zero (do not matter because those cloumns will de delete during calculation)
   OTU.comb <- as.matrix(OTU.comb)
   if(!is.null(Tax)){
     # preserve those columns which have taxonomy information
