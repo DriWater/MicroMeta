@@ -6,7 +6,6 @@
   return( 1 - pchisq(x.stat, df = 2 * length(x)) )
 }
 
-
 .diag2 <- function(x){
  # transform the numeric into diag matrix
   if(length(x)>1){
@@ -218,7 +217,8 @@
   return(list(score.df.alpha=n.par.interest.alpha, score.stat.alpha = score.stat.alpha, score.alpha = A, est.cov.zero=B, score.pvalue.alpha=score.pvalue.alpha, vA.list=vA.list, Vinv.list=Vinv.list, VY.list=VY.list )   )
 
 }
-# Get the permutation statistics  br R
+
+# Get the permutation statistics by R
 .Score.test.stat.zero.meta.4Gresampling <- function(Z.perm.list, Z.par.index, n.par.interest.alpha, col.zero.index.list, vA.list.meta, Vinv.list.meta, VY.list.meta, Method = "FE-MV"){
 
   # the total study number
@@ -346,7 +346,7 @@
 
 }
 
-# Get the permutation statistics  br cpp
+# Get the permutation statistics by cpp
 .Score.test.stat.zero.meta.4Gresampling.c <- function(Z.perm.list, Z.par.index, n.par.interest.alpha, col.zero.index.list, vA.list.meta, Vinv.list.meta, VY.list.meta, Method = "FE-MV"){
   tmp = score_test_stat_zero_meta_resampling_c(Z.perm.list, col.zero.index.list, vA.list.meta, Vinv.list.meta, VY.list.meta, Z.par.index, n.par.interest.alpha)
   est.cov.meta = tmp$est_cov_meta
@@ -405,7 +405,6 @@
   return(list(score.stat.alpha.perm = as.numeric(score.stat.alpha.perm)))
 
 }
-
 
 # add 10/22/2022 for adaptive resampling
 .resample.work.zero.meta <- function(Z.list, Z.par.index, n.par.interest.alpha, col.zero.index.list, score.stat.zero.meta, zero.vA.list.meta, zero.Vinv.list.meta, zero.VY.list.meta, start.nperm, end.nperm, n.zero, zero.acc, use.cpp, Method = "FE-MV"){
@@ -466,7 +465,6 @@
               flag=flag, next.end.nperm=next.end.nperm))
 
 }
-
 
 # Z.list: a list of covariates for zero part: first column is always intercept
 # Z.par.index: index for the parameter of interest for the Z part
@@ -844,7 +842,7 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth
         names(pval.zero) = c(paste0("Asymptotic-",Method),paste0("Resampling-",Method))
       }
     }
-    return(pval.zero)
+    return(list(pval = pval.zero))
   }else{ # perform tests for lineages
 
     if(!is.matrix(Tax)){
