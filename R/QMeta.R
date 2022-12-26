@@ -329,20 +329,20 @@
   # if (Method == "Fisher") {
   #   score.stat.meta.perm <- -2 * sum(log(score.pvalue.beta)) # the Fisher's p-value combination
   # }
-  if(Method == "Het-SKAT"){
+  if(Method == "Het-VC"){
     score.stat.meta.perm = 0
     for( i in 1:stu.num ){
       est.inv = ginv(est.cov[[i]])
       score.stat.meta.perm = score.stat.meta.perm + tcrossprod(crossprod(score.beta[[i]], est.inv), crossprod(score.beta[[i]], est.inv))
     }
   }
-  if(Method == "RE-SKAT"){
+  if(Method == "RE-VC"){
     U.tau.b = 0
     a2 = 0
     for( i in 1:stu.num ){
       est.inv = ginv(est.cov[[i]])
       U.tau.b = U.tau.b + tcrossprod(crossprod(score.beta[[i]],est.inv), crossprod(score.beta[[i]], est.inv))
-      a2 = a2 + sum(diag(crossprod(t(est.inv),est.inv))) # when \tau matrix and W matrix is identity the elements in upper left, bottom right as well as bottom left are the same in RE-SKAT test
+      a2 = a2 + sum(diag(crossprod(t(est.inv),est.inv))) # when \tau matrix and W matrix is identity the elements in upper left, bottom right as well as bottom left are the same in RE-VC test
     }
     a1 = sum(diag(crossprod(t(est.cov.inv),est.cov.inv)))
     U.tau.b = 1/2 * U.tau.b + 1/2 * sum(diag(est.cov.inv))
@@ -387,7 +387,7 @@
   #   score.stat.meta.perm = -2 * sum(log(score.pvalue.beta))
   # }
   #
-  if(Method == "Het-SKAT"){
+  if(Method == "Het-VC"){
     #W = diag(1,nrow = n.par.interest.beta)
     score.stat.meta.perm = 0
 
@@ -396,7 +396,7 @@
       score.stat.meta.perm = score.stat.meta.perm + tcrossprod(crossprod(score.beta[[i]], est.inv), crossprod(score.beta[[i]], est.inv))
     }
   }
-  if(Method == "RE-SKAT"){
+  if(Method == "RE-VC"){
     U.tau.b = 0
     a2 = 0
     for( i in 1:stu.num ){
@@ -470,7 +470,7 @@
     stop("Error: Testing parameters for the intercept is not informative. (Beta part)")
   }
   # check the parameters of interest to ensure the intercept term is not in it
-  if(! Method %in% c("FE-MV","FE-VC","Het-SKAT","RE-SKAT")){
+  if(! Method %in% c("FE-MV","FE-VC","Het-VC","RE-VC")){
     stop("Error: Please Choose a Proper Meta-analysis Method")
   }
   # the taxa of each study should be the same
@@ -589,7 +589,7 @@
     #   score.pvalue = .F.test(score.pvalue.beta)
     #   df = length(score.pvalue.beta)
     # }
-    if(Method == "Het-SKAT"){
+    if(Method == "Het-VC"){
       score.stat.meta = 0
       for( i in 1:j ){
         est.inv = ginv(est.cov[[i]])
@@ -597,13 +597,13 @@
         score.stat.meta = score.stat.meta + tcrossprod(crossprod(score.beta[[i]],est.inv), crossprod(score.beta[[i]], est.inv))
       }
     }
-    if(Method == "RE-SKAT"){
+    if(Method == "RE-VC"){
       U.tau.b = 0
       a2 = 0
       for( i in 1:j ){
         est.inv = ginv(est.cov[[i]])# calculate the generalized inverse for each estimate covariance for each study
         U.tau.b = U.tau.b + tcrossprod(crossprod(score.beta[[i]],est.inv), crossprod(score.beta[[i]], est.inv))
-        # when \tau matrix and W matrix is identity the elements in upper left, bottom right as well as bottom left are the same in RE-SKAT test
+        # when \tau matrix and W matrix is identity the elements in upper left, bottom right as well as bottom left are the same in RE-VC test
         a2 = a2 + sum(diag(crossprod(t(est.inv),est.inv)))
       }
       a1 = sum(diag(crossprod(t(est.cov.inv),est.cov.inv)))
@@ -685,14 +685,14 @@
 #' @param Tax a matrix defines the taxonomy ranks with each row corresponding to an OTU or a taxa and each column corresponding to a rank (starting from the higher taxonomic level). Row name is mandatory and should be consistent with the column name of the OTU table, Column name should be formatted as "Rank1", "Rank2 ()"... etc
 #'        If provided, tests will be performed for lineages based on the taxonomic rank. The output contains P-values for all lineages; a list of significant lineages controlling the false discovery rate (based on resampling p-value if resampling test was performed).
 #'        If not provided, one test will be performed with all the OTUs and one p-value will be output.
-#' @param Method Meta-analysis method to be used. Including fixed effect methods such as the FE-MV test and FE-VC test and random effect methods like Het-SKAT and RE-SKAT test.
+#' @param Method Meta-analysis method to be used. Including fixed effect methods such as the FE-MV test and FE-VC test and random effect methods like Het-VC and RE-VC test.
 #' @param min.depth keep samples with depths >= min.depth.
 #' @param n.perm perform asymptotic test if n.perm is null, otherwise perform permutation tests using the specified number of resamplings.
 #' @param fdr.alpha false discovery rate for multiple tests on the lineages.
 #' @param use.cpp Logical value (default F). Whether to use Rcpp or not for resampling test.
 #'
 #' @return A list with this elements
-#'    \item{lineage.pval}{p-values for all lineages. By default ( Method = "FE-MV", n.perm = NULL ), only the asymptotic test will be performed. If using random effect meta-analysis methods ( Method = "RE-SKAT" or Method = "Het-SKAT" ), then resampling test must be performed.}
+#'    \item{lineage.pval}{p-values for all lineages. By default ( Method = "FE-MV", n.perm = NULL ), only the asymptotic test will be performed. If using random effect meta-analysis methods ( Method = "RE-VC" or Method = "Het-VC" ), then resampling test must be performed.}
 #'    \item{sig.lineage}{a vector of significant lineages.}
 #' @export
 #'
@@ -724,7 +724,7 @@ QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, 
   n.OTU = length(OTU)
   n.X = length(X)
   # drop.col = NULL
-  if(Method %in% c("RE-SKAT", "Het-SKAT")){
+  if(Method %in% c("RE-VC", "Het-VC")){
     if(is.null(n.perm)){
       stop("The p-value for random effect meta-analysis method must be got by resampling test")
     }
@@ -793,7 +793,7 @@ QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, 
     }else{ # resampling test + asymptotic test
       # (Y.list, X.list, X.par.index, seed=11, resample=FALSE, n.replicates=NULL, Method = "FE-MV", Weight=NULL )
       tmp = .Score.test.meta(count, X, X.index, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = Method)
-      if(Method %in% c("RE-SKAT", "Het-SKAT")){
+      if(Method %in% c("RE-VC", "Het-VC")){
         pval = c(tmp$score.Rpvalue)
         names(pval) = paste0("Resampling-",Method)
       }else{
@@ -888,7 +888,7 @@ QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, 
             # if n.resample in not null, select the significant lineage according to the resampling pvalue
             #  run test for each lineage
             # (Y.list, X.list, X.par.index, seed=11, resample=FALSE, n.replicates=NULL, Method = "FE-MV", Weight=NULL )
-            if(Method %in% c("RE-SKAT", "Het-SKAT")){
+            if(Method %in% c("RE-VC", "Het-VC")){
               tmp = .Score.test.meta(Y, X, X.index, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = Method)
               pval = cbind(pval, c(tmp$score.Rpvalue))
             }else{
@@ -911,7 +911,7 @@ QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, 
     rownames(pval) = paste0("Asymptotic-",Method)
     score.tmp = pval[1,]
   }else{
-    if(Method %in% c("RE-SKAT", "Het-SKAT")){
+    if(Method %in% c("RE-VC", "Het-VC")){
       rownames(pval) = paste0("Resampling-",Method)
       score.tmp = pval[1,]
     }else{

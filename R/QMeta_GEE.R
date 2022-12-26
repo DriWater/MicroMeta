@@ -314,27 +314,27 @@
     #
     score.stat.alpha.perm = crossprod( score.alpha.meta, crossprod(t(est.cov.inv), crossprod( t(est.cov.inv), score.alpha.meta))) #Fixed effect variance component test
   }
-  if(Method == "Het-SKAT"){
+  if(Method == "Het-VC"){
     score.stat.alpha.perm = 0
 
     for( i in 1:iter.num ){
       est.inv = ginv(est.cov.zero[[i]])
-      score.stat.alpha.perm = score.stat.alpha.perm + tcrossprod(crossprod(score.alpha[[i]], est.inv), crossprod(score.alpha[[i]], est.inv)) # Het-SKAT test
+      score.stat.alpha.perm = score.stat.alpha.perm + tcrossprod(crossprod(score.alpha[[i]], est.inv), crossprod(score.alpha[[i]], est.inv)) # Het-VC test
     }
   }
-  if(Method == "RE-SKAT"){ # RE-SKAT test
+  if(Method == "RE-VC"){ # RE-VC test
     U.tau.b = 0
     a2 = 0
     for( i in 1:iter.num ){
       est.inv = ginv(est.cov.zero[[i]])
       U.tau.b = U.tau.b + tcrossprod(crossprod(score.alpha[[i]],est.inv), crossprod(score.alpha[[i]], est.inv))
-      a2 = a2 + sum(diag(crossprod(t(est.inv),est.inv))) # when \tau matrix and W matrix is identity the elements in upper left, bottom right as well as bottom left are the same in RE-SKAT test
+      a2 = a2 + sum(diag(crossprod(t(est.inv),est.inv))) # when \tau matrix and W matrix is identity the elements in upper left, bottom right as well as bottom left are the same in RE-VC test
     }
     a1 = sum(diag(crossprod(t(est.cov.inv),est.cov.inv)))
     U.tau.b = 1/2 * U.tau.b + 1/2 * sum(diag(est.cov.inv))
     U.tau.w = 1/2 * crossprod( score.alpha.meta, crossprod(t(est.cov.inv), crossprod( t(est.cov.inv), score.alpha.meta)))
     + 1/2 * sum(diag(est.cov.inv))
-    # the score statistic for RE-SKAT test
+    # the score statistic for RE-VC test
     score.stat.alpha.perm = crossprod(c(U.tau.w, U.tau.b), crossprod(1/2 * matrix(c(a1,a2,a2,a2),ncol = 2), c(U.tau.w, U.tau.b)))
   }
   # if (Method == "Fisher")
@@ -379,7 +379,7 @@
   # {
   #   score.stat.alpha.perm = -2 * sum(log(score.pvalue.alpha))
   # }
-  if(Method == "Het-SKAT"){
+  if(Method == "Het-VC"){
     score.stat.alpha.perm = 0
 
     for( i in 1:iter.num ){
@@ -387,7 +387,7 @@
       score.stat.alpha.perm = score.stat.alpha.perm + tcrossprod(crossprod(score.alpha[[i]], est.inv), crossprod(score.alpha[[i]], est.inv))
     }
   }
-  if(Method == "RE-SKAT"){
+  if(Method == "RE-VC"){
     U.tau.b = 0
     a2 = 0
     for( i in 1:iter.num ){
@@ -399,7 +399,7 @@
     U.tau.b = 1/2 * U.tau.b + 1/2 * sum(diag(est.cov.inv))
     U.tau.w = 1/2 * crossprod( score.alpha.meta, crossprod(t(est.cov.inv), crossprod( t(est.cov.inv), score.alpha.meta)))
     + 1/2 * sum(diag(est.cov.inv))
-    # when \tau matrix and W matrix is identity the elements in upper left, bottom right as well as bottom left are the same in RE-SKAT test
+    # when \tau matrix and W matrix is identity the elements in upper left, bottom right as well as bottom left are the same in RE-VC test
     score.stat.alpha.perm = crossprod(c(U.tau.w, U.tau.b), crossprod(1/2 * matrix(c(a1,a2,a2,a2),ncol = 2), c(U.tau.w, U.tau.b)))
   }
   return(list(score.stat.alpha.perm = as.numeric(score.stat.alpha.perm)))
@@ -478,7 +478,7 @@
   n.OTU = length(Y.list)
   # the total number of parameter of interest
   n.par.interest.alpha = m*length(Z.par.index)
-  if(! Method %in% c("FE-MV","FE-VC",'Het-SKAT',"RE-SKAT")){
+  if(! Method %in% c("FE-MV","FE-VC",'Het-VC',"RE-VC")){
     stop("Error: Please Choose a Proper Meta-analysis Method")
   }
   # check the parameters of interest to ensure the intercept term is not in it
@@ -638,7 +638,7 @@
     #   }
     #   zero.results = list(score.stat = score.stat.zero.meta, score.pvalue = score.pvalue.zero, df = df.zero)
     # }
-    if(Method == "Het-SKAT"){
+    if(Method == "Het-VC"){
       score.stat.zero.meta = 0
       for( i in 1:n.zero){
         est.inv = ginv(est.cov.zero[[i]])
@@ -646,13 +646,13 @@
         score.stat.zero.meta = score.stat.zero.meta + tcrossprod(crossprod(score.alpha[[i]],est.inv), crossprod(score.alpha[[i]], est.inv))
       }
     }
-    if(Method == "RE-SKAT"){
+    if(Method == "RE-VC"){
       U.tau.b = 0
       a2 = 0
       for( i in 1:n.zero){
         est.inv = ginv(est.cov.zero[[i]]) # calculate the generalized inverse for each estimate covariance for each study
         U.tau.b = U.tau.b + tcrossprod(crossprod(score.alpha[[i]],est.inv), crossprod(score.alpha[[i]], est.inv))
-        a2 = a2 + sum(diag(crossprod(t(est.inv),est.inv)))         # when \tau matrix and W matrix is identity the elements in upper left, bottom right as well as bottom left are the same in RE-SKAT test
+        a2 = a2 + sum(diag(crossprod(t(est.inv),est.inv)))         # when \tau matrix and W matrix is identity the elements in upper left, bottom right as well as bottom left are the same in RE-VC test
       }
       a1 = sum(diag(crossprod(t(est.cov.zero.inv),est.cov.zero.inv)))
       U.tau.b = 1/2 * U.tau.b + 1/2 * sum(diag(est.cov.zero.inv))
@@ -724,7 +724,7 @@
 #' @param Z.index a vector indicate the columns in X for the covariate(s) of interest.
 #'
 #' @return A list with this elements
-#'    \item{lineage.pval}{p-values for all lineages. By default ( Method = "FE-MV", n.perm = NULL ), only the asymptotic test will be performed. If the meta-analysis method is random effect methods like RE-SKAT or Het-SKAT, then resampling test must be performed.}
+#'    \item{lineage.pval}{p-values for all lineages. By default ( Method = "FE-MV", n.perm = NULL ), only the asymptotic test will be performed. If the meta-analysis method is random effect methods like RE-VC or Het-VC, then resampling test must be performed.}
 #'    \item{sig.lineage}{a vector of significant lineages.}
 #' @export
 #'
@@ -757,7 +757,7 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth
   # if(length(unique(sapply(1:n.OTU,function(j) ncol(OTU[[j]]))))!= 1){
   #   stop("The taxa in each study should be the same")
   # }
-  if(Method %in% c("RE-SKAT", "Het-SKAT")){
+  if(Method %in% c("RE-VC", "Het-VC")){
     if(is.null(n.resample)){
       stop("The p-value for random effect meta-analysis method must be got by resampling test")
     }
@@ -834,7 +834,7 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth
       colnames(pval.zero) = paste0("Asymptotic-",Method)
     }else{
       tmp = .Score.test.zero.meta(count, Z, Z.index, seed=11, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = Method)
-      if(Method %in% c("RE-SKAT", "Het-SKAT")){
+      if(Method %in% c("RE-VC", "Het-VC")){
         pval.zero = c(tmp$score.Rpvalue)
         names(pval.zero) = paste0("Resampling-",Method)
       }else{
@@ -915,7 +915,7 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth
           else{
             # if n.resample in not null, select the significant lineage according to the resampling pvalue
             #  run test for each lineage
-            if(Method %in% c("RE-SKAT", "Het-SKAT")){
+            if(Method %in% c("RE-VC", "Het-VC")){
               tmp = .Score.test.zero.meta(Y, Z, Z.index, seed=11, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = Method)
               pval.zero = cbind(pval.zero, tmp$score.Rpvalue)
             }else{
@@ -940,7 +940,7 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth
     score.zero.tmp = pval.zero[1,]
 
   }else{
-    if(Method %in% c("RE-SKAT", "Het-SKAT")){
+    if(Method %in% c("RE-VC", "Het-VC")){
       rownames(pval.zero) = paste0("Resampling-",Method)
       score.zero.tmp = pval.zero[1,]
     }else{
