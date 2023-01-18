@@ -354,7 +354,6 @@
   return(as.numeric(score.stat.meta.perm))  # return the test statistics
 }
 
-
 .Score.test.stat.meta.4Gresampling.c <- function(X.perm.list, X.par.index, n.par.interest.beta, col.index.list, S.beta.list.meta, I.beta.list.meta, Method = "FE-MV"){
   tmp = score_test_stat_meta_resampling_c(X.perm.list, col.index.list, S.beta.list.meta, I.beta.list.meta, X.par.index, n.par.interest.beta)
   est.cov.meta = tmp$est_cov_meta
@@ -517,7 +516,7 @@
         remove.index = append(remove.index,i)
         next
       }
-      col.index = col.index[-1]
+      col.index = col.index[-length(col.index)]
       n.beta = (m - 1)*p
       tmp.one = try( .Score.test.stat(Y, X, X.par.index) )
       if( "try-error" %in% class(tmp.one) ){
@@ -532,7 +531,7 @@
         j = j+1
         # get the index for parameter of interest after score statistics and estimate covariance matrix are reorginzed
         # different across studies because of different column numbers
-        idx = kronecker((col.index-2)*p.par, rep(1,p.par)) + c(1:p.par)
+        idx = kronecker((col.index-1)*p.par, rep(1,p.par)) + c(1:p.par)
         col.index.list[[j]] = idx
         score.stat.beta = append(score.stat.beta, tmp.one$score.stat.beta)
         score.beta[[j]] = tmp.one$score.beta
