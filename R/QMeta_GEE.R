@@ -68,8 +68,8 @@
       V.i = A.i # independent cor structure
 
       tmp.V.i = ginv(V.i)
-      tmp.VY = tmp.V.i %*% (Y[i,] - Pi.i)
-      Score.alpha.i[i,] = t.D.i %*% tmp.VY # score value
+      tmp.VY = crossprod(t(tmp.V.i), (Y[i,] - Pi.i))
+      Score.alpha.i[i,] = crossprod(t(t.D.i), tmp.VY) # score value
 
       if(save.list){
         vA.list[[i]] = vA.tmp
