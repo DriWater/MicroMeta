@@ -195,8 +195,8 @@
     est.reduce.beta[par.interest.index.beta] <- 0
 
     # Use the optimize function to estimate beta value which we are interested in
-    est.reduce.beta[-par.interest.index.beta] <- optim(par = beta.ini.reduce, fn = .fun.neg.loglik.beta, gr = .fun.neg.score.beta, data = data.reduce.beta, method = "BFGS")$par
-
+    # est.reduce.beta[-par.interest.index.beta] <- optim(par = beta.ini.reduce, fn = .fun.neg.loglik.beta, gr = .fun.neg.score.beta, data = data.reduce.beta, method = "BFGS")$par
+    est.reduce.beta[-par.interest.index.beta] <- c(t(coef(brmultinom(Y ~ X - 1, data = data.reduce.beta, type = "AS_mean"))))
 
     data.beta <- list(Y = Y, X = X)
 
@@ -705,6 +705,7 @@
 #' @import data.table
 #' @import CompQuadForm
 #' @import geepack
+#' @import brglm2
 #' @importFrom stats coef optim pchisq
 #' @importFrom dplyr bind_rows
 #' @references

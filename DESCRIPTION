@@ -15,7 +15,8 @@ Imports:
     geepack,
     MASS,
     Rcpp,
-    stats
+    stats,
+    brglm2
 LinkingTo: 
     Rcpp,
     RcppArmadillo

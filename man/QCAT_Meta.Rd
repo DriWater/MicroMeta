@@ -27,7 +27,7 @@ QCAT_Meta(
 If provided, tests will be performed for lineages based on the taxonomic rank. The output contains P-values for all lineages; a list of significant lineages controlling the false discovery rate (based on resampling p-value if resampling test was performed).
 If not provided, one test will be performed with all the OTUs and one p-value will be output.}
 
-\item{Method}{Meta-analysis method to be used. Including fixed effect methods such as the FE-MV test and FE-VC test and random effect methods like Het-SKAT and RE-SKAT test.}
+\item{Method}{Meta-analysis method to be used. Including fixed effect methods such as the FE-MV test and FE-VC test and random effect methods like Het-VC and RE-VC test.}
 
 \item{min.depth}{keep samples with depths >= min.depth.}
 
@@ -39,7 +39,7 @@ If not provided, one test will be performed with all the OTUs and one p-value wi
 }
 \value{
 A list with this elements
-\item{lineage.pval}{p-values for all lineages. By default ( Method = "FE-MV", n.perm = NULL ), only the asymptotic test will be performed. If using random effect meta-analysis methods ( Method = "RE-SKAT" or Method = "Het-SKAT" ), then resampling test must be performed.}
+\item{lineage.pval}{p-values for all lineages. By default ( Method = "FE-MV", n.perm = NULL ), only the asymptotic test will be performed. If using random effect meta-analysis methods ( Method = "RE-VC" or Method = "Het-VC" ), then resampling test must be performed.}
 \item{sig.lineage}{a vector of significant lineages.}
 }
 \description{
