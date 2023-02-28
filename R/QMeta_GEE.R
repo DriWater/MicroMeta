@@ -717,6 +717,37 @@
   return(zero.results)
 }
 
+# .Rarefy <- function (otu.tab, depth = min(rowSums(otu.tab))){
+#   # Rarefaction function: downsample to equal depth
+#   #
+#   # Args:
+#   #		otu.tab: OTU count table, row - n sample, column - q OTU
+#   #		depth: required sequencing depth
+#   #
+#   # Returns:
+#   # 	otu.tab.rff: Rarefied OTU table
+#   #		discard: labels of discarded samples
+#   #
+#   if(depth == 0){
+#     return(list(otu.tab.rff=as.matrix(otu.tab)))
+#   }
+#   otu.tab <- as.matrix(otu.tab)
+#   ind <- (rowSums(otu.tab) < depth)
+#   sam.discard <- rownames(otu.tab)[ind]
+#   otu.tab <- otu.tab[!ind, ]
+#
+#   rarefy <- function(x, depth){
+#     y <- sample(rep(1:length(x), x), depth)
+#     y.tab <- table(y)
+#     z <- numeric(length(x))
+#     z[as.numeric(names(y.tab))] <- y.tab
+#     z
+#   }
+#   otu.tab.rff <- t(apply(otu.tab, 1, rarefy, depth))
+#   rownames(otu.tab.rff) <- rownames(otu.tab)
+#   colnames(otu.tab.rff) <- colnames(otu.tab)
+#   return(list(otu.tab.rff=otu.tab.rff, discard=sam.discard))
+# }
 
 #' Title
 #' @inheritParams QCAT_Meta
@@ -784,9 +815,9 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth
                   of study ", i, " should be the same"))
     }
 
-    remove.subject = which(rowSums(OTU[[i]])<min.depth)
+    remove.subject = which(rowSums(OTU[[i]])<=min.depth)
     if(length(remove.subject)>0){
-      print(paste("Remove",length(remove.subject), "samples with read depth less than", min.depth, "in OTU table", i))
+      print(paste("Remove",length(remove.subject), "samples with read depth less or equal to", min.depth, "in OTU table", i))
       Z[[i]] = Z[[i]][-remove.subject, ,drop=FALSE]
       OTU[[i]] = OTU[[i]][-remove.subject, ,drop=FALSE]
     }
@@ -821,13 +852,14 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth
   batch.cnt <- cumsum(batch.cnt)
   count = list()
   for (i in 1:n.OTU) {
-    count[[i]] <- OTU.comb[batch.cnt[i]:(batch.cnt[i+1]-1),]
+    count[[i]] = OTU.comb[batch.cnt[i]:(batch.cnt[i+1]-1),]
   }
 
   Z = lapply(1:n.OTU,function(j) cbind(1, Z[[j]])) # add the intercept term
   Z.index = Z.index + 1
 
   if(is.null(Tax)){ # perform one test using all OTUs
+    # count = lapply(count,function(X){.Rarefy(X)$otu.tab.rff})
     if(is.null(n.resample)){ # asymptotic test only
       tmp = .Score.test.zero.meta(count, Z, Z.index, seed=11, resample=FALSE, n.replicates=NULL, Method = Method)
       pval.zero = as.matrix( tmp$score.pvalue )
@@ -884,7 +916,7 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth
       for(j in 1:m.level){
 
         Y = lapply(1:n.OTU, function(i) t(W.count[[i]][which(W.tax == level.uni[j]), , drop=FALSE]))
-
+        #Y = lapply(Y,function(X){.Rarefy(X)$otu.tab.rff})
         #Y = t(W.count[which(W.tax == "f__Veillonellaceae"), , drop=FALSE])
         # remove.index = NULL
         # for( i in 1:n.OTU)

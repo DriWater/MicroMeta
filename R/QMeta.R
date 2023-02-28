@@ -750,9 +750,9 @@ QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, 
       stop(paste0("Number of samples in the OTU table and the covariate table of study ", i,
                   " should be the same\n"))
     }
-    remove.subject = which(rowSums(OTU[[i]])<min.depth)
+    remove.subject = which(rowSums(OTU[[i]])<=min.depth)
     if(length(remove.subject)>0){
-      print(paste("Remove",length(remove.subject), "samples with read depth less than", min.depth, "in OTU table", i,"\n"))
+      print(paste("Remove",length(remove.subject), "samples with read depth less or equal to", min.depth, "in OTU table", i,"\n"))
       X[[i]] = X[[i]][-remove.subject, ,drop=FALSE]
       OTU[[i]] = OTU[[i]][-remove.subject, ,drop=FALSE]
     }
