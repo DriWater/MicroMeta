@@ -716,7 +716,7 @@
   }
   return(zero.results)
 }
-
+#
 # .Rarefy <- function (otu.tab, depth = min(rowSums(otu.tab))){
 #   # Rarefaction function: downsample to equal depth
 #   #
@@ -728,9 +728,6 @@
 #   # 	otu.tab.rff: Rarefied OTU table
 #   #		discard: labels of discarded samples
 #   #
-#   if(depth == 0){
-#     return(list(otu.tab.rff=as.matrix(otu.tab)))
-#   }
 #   otu.tab <- as.matrix(otu.tab)
 #   ind <- (rowSums(otu.tab) < depth)
 #   sam.discard <- rownames(otu.tab)[ind]
@@ -916,7 +913,27 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth
       for(j in 1:m.level){
 
         Y = lapply(1:n.OTU, function(i) t(W.count[[i]][which(W.tax == level.uni[j]), , drop=FALSE]))
-        #Y = lapply(Y,function(X){.Rarefy(X)$otu.tab.rff})
+        # remove.list.idx = NULL
+        # for(i in 1:n.OTU)
+        # {
+        #   remove.subject = which(rowSums(Y[[i]])<=0)
+        #   if(length(remove.subject)>0){
+        #     if(length(remove.subject) == nrow(Y[[i]])){
+        #       remove.list.idx = append(remove.list.idx,i)
+        #     }else{
+        #       Z[[i]] = Z[[i]][-remove.subject, ,drop=FALSE]
+        #       Y[[i]] = Y[[i]][-remove.subject, ,drop=FALSE]
+        #     }
+        #   }
+        # }
+        # if(length(remove.list.idx)==length(Y)){
+        #   next
+        # }
+        # if(length(remove.list.idx)>0){
+        #   Y = Y[-remove.list.idx]
+        #   Z = Z[-remove.list.idx]
+        # }
+        # Y = lapply(Y,function(X){.Rarefy(X)$otu.tab.rff})
         #Y = t(W.count[which(W.tax == "f__Veillonellaceae"), , drop=FALSE])
         # remove.index = NULL
         # for( i in 1:n.OTU)
@@ -959,56 +976,53 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth
         }
 
       }# lineage loop
-    }
+    } # level loop
+    colnames(pval.zero) = subtree
 
-  }# level loop
+    if(is.null(n.resample)){
 
-
-  colnames(pval.zero) = subtree
-
-  if(is.null(n.resample)){
-
-    rownames(pval.zero) =  paste0("Asymptotic-",Method)
-    score.zero.tmp = pval.zero[1,]
-
-  }else{
-    if(Method %in% c("RE-VC", "Het-VC")){
-      rownames(pval.zero) = paste0("Resampling-",Method)
+      rownames(pval.zero) =  paste0("Asymptotic-",Method)
       score.zero.tmp = pval.zero[1,]
+
     }else{
-      rownames(pval.zero) = c(paste0("Asymptotic-",Method),paste0("Resampling-",Method))
-      score.zero.tmp = pval.zero[2,]
+      if(Method %in% c("RE-VC", "Het-VC")){
+        rownames(pval.zero) = paste0("Resampling-",Method)
+        score.zero.tmp = pval.zero[1,]
+      }else{
+        rownames(pval.zero) = c(paste0("Asymptotic-",Method),paste0("Resampling-",Method))
+        score.zero.tmp = pval.zero[2,]
+      }
     }
+    # identify significant lineages
+
+    subtree.tmp = subtree
+    index.na = which(is.na(score.zero.tmp))
+    if(length(index.na)>0){
+      # drop those lineages which have NA values
+      score.zero.tmp = score.zero.tmp[-index.na]
+      subtree.tmp = subtree.tmp[-index.na]
+    }
+
+    #score.tmp[score.tmp==0] = 1e-4
+    m.test = length(score.zero.tmp)
+
+    # Benjamini-Hochberg FDR control
+    index.p = order(score.zero.tmp)
+    p.sort = sort(score.zero.tmp)
+    #fdr.alpha = 0.05
+
+    # change 12/10/2022
+    reject = rep(0, m.test)
+    tmp = which(p.sort<=(1:m.test)*fdr.alpha/m.test)
+    if(length(tmp)>0){
+      index.reject = index.p[1:max(tmp)]
+      reject[index.reject] = 1
+    }
+
+    sig.lineage = subtree.tmp[reject==1]
+    # return all the p-values as well as significant lineages
+    return( list(lineage.pval=pval.zero, sig.lineage=sig.lineage) )
   }
-  # identify significant lineages
-
-  subtree.tmp = subtree
-  index.na = which(is.na(score.zero.tmp))
-  if(length(index.na)>0){
-    # drop those lineages which have NA values
-    score.zero.tmp = score.zero.tmp[-index.na]
-    subtree.tmp = subtree.tmp[-index.na]
-  }
-
-  #score.tmp[score.tmp==0] = 1e-4
-  m.test = length(score.zero.tmp)
-
-  # Benjamini-Hochberg FDR control
-  index.p = order(score.zero.tmp)
-  p.sort = sort(score.zero.tmp)
-  #fdr.alpha = 0.05
-
-  # change 12/10/2022
-  reject = rep(0, m.test)
-  tmp = which(p.sort<=(1:m.test)*fdr.alpha/m.test)
-  if(length(tmp)>0){
-    index.reject = index.p[1:max(tmp)]
-    reject[index.reject] = 1
-  }
-
-  sig.lineage = subtree.tmp[reject==1]
-  # return all the p-values as well as significant lineages
-  return( list(lineage.pval=pval.zero, sig.lineage=sig.lineage) )
 
 }
 

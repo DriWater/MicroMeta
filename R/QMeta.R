@@ -899,57 +899,54 @@ QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, 
 
         }
 
-      }
-    }# lineage loop
+      } # lineage loop
+    } # level loop
 
-
-  }# level loop
-
-
-  colnames(pval) = subtree
-  if(is.null(n.resample)){
-    rownames(pval) = paste0("Asymptotic-",Method)
-    score.tmp = pval[1,]
-  }else{
-    if(Method %in% c("RE-VC", "Het-VC")){
-      rownames(pval) = paste0("Resampling-",Method)
+    colnames(pval) = subtree
+    if(is.null(n.resample)){
+      rownames(pval) = paste0("Asymptotic-",Method)
       score.tmp = pval[1,]
     }else{
-      rownames(pval) = c(paste0("Asymptotic-",Method),paste0("Resampling-",Method))
-      score.tmp = pval[2,]
+      if(Method %in% c("RE-VC", "Het-VC")){
+        rownames(pval) = paste0("Resampling-",Method)
+        score.tmp = pval[1,]
+      }else{
+        rownames(pval) = c(paste0("Asymptotic-",Method),paste0("Resampling-",Method))
+        score.tmp = pval[2,]
+      }
+      #print(pval)
     }
-    #print(pval)
+
+    # identify significant lineages
+    subtree.tmp = subtree
+    index.na = which(is.na(score.tmp))
+    if(length(index.na)>0){
+      # drop those lineages which have NA values
+      score.tmp = score.tmp[-index.na]
+      subtree.tmp = subtree.tmp[-index.na]
+    }
+
+    #score.tmp[score.tmp==0] = 1e-4
+    m.test = length(score.tmp)
+
+    # Benjamini-Hochberg FDR control
+    index.p = order(score.tmp)
+    p.sort = sort(score.tmp)
+    #fdr.alpha = 0.05
+
+    # change 2022/12/01
+    reject = rep(0, m.test)
+    tmp = which(p.sort<=(1:m.test)*fdr.alpha/m.test)
+    if(length(tmp)>0){
+      index.reject = index.p[1:max(tmp)]
+      reject[index.reject] = 1
+    }
+
+    sig.lineage = subtree.tmp[reject==1]
+
+    # return all the p-values as well as significant lineages
+    return( list(lineage.pval=pval, sig.lineage=sig.lineage) )
   }
-
-  # identify significant lineages
-  subtree.tmp = subtree
-  index.na = which(is.na(score.tmp))
-  if(length(index.na)>0){
-    # drop those lineages which have NA values
-    score.tmp = score.tmp[-index.na]
-    subtree.tmp = subtree.tmp[-index.na]
-  }
-
-  #score.tmp[score.tmp==0] = 1e-4
-  m.test = length(score.tmp)
-
-  # Benjamini-Hochberg FDR control
-  index.p = order(score.tmp)
-  p.sort = sort(score.tmp)
-  #fdr.alpha = 0.05
-
-  # change 2022/12/01
-  reject = rep(0, m.test)
-  tmp = which(p.sort<=(1:m.test)*fdr.alpha/m.test)
-  if(length(tmp)>0){
-    index.reject = index.p[1:max(tmp)]
-    reject[index.reject] = 1
-  }
-
-  sig.lineage = subtree.tmp[reject==1]
-
-# return all the p-values as well as significant lineages
-  return( list(lineage.pval=pval, sig.lineage=sig.lineage) )
 
 
 }
