@@ -16,7 +16,8 @@ Imports:
     MASS,
     Rcpp,
     stats,
-    brglm2
+    brglm2,
+    psych
 LinkingTo: 
     Rcpp,
     RcppArmadillo

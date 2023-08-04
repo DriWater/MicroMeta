@@ -19,7 +19,7 @@ Rcpp::List score_test_stat_meta_resampling_c(const Rcpp::List& X_perm_list, cons
   int total_num = X_perm_list.length();
   // initialize for later use
   arma::vec score_stat_beta = arma::vec(n_par_interest_beta,arma::fill::zeros);
-  arma::vec score_stat_beta_vec = arma::vec(total_num);
+  // arma::vec score_stat_beta_vec = arma::vec(total_num);
   arma::mat est_cov_meta(n_par_interest_beta,n_par_interest_beta);
   // create null list to save the results for each study
   Rcpp::List score_beta(total_num);
@@ -35,7 +35,7 @@ Rcpp::List score_test_stat_meta_resampling_c(const Rcpp::List& X_perm_list, cons
     int m_beta = vec_tmp.n_elem;
     int n_beta = m_beta * p;
     //  the index of parameters of interest
-    arma::vec index_mat  = arma::kron(arma::linspace(0,(m_beta-1) * p, m_beta),arma::ones(X_par_index.n_elem)) + arma::kron(arma::ones(m_beta), X_par_index);
+    arma::vec index_mat = arma::kron(arma::linspace(0,(m_beta-1) * p, m_beta),arma::ones(X_par_index.n_elem)) + arma::kron(arma::ones(m_beta), X_par_index);
     arma::uvec par_interest_index_beta = arma::conv_to< arma::uvec>::from(index_mat-1);
     arma::vec par_disinterest_index = arma::linspace(1,n_beta,n_beta);
     par_disinterest_index.elem(par_interest_index_beta) = arma::zeros(par_interest_index_beta.n_elem); // set the positions of parameters of interest to zero
@@ -63,28 +63,37 @@ Rcpp::List score_test_stat_meta_resampling_c(const Rcpp::List& X_perm_list, cons
     arma::uvec idx = arma::conv_to< arma::uvec >::from(arma::linspace(0, (n_par_beta_interest-1), n_par_beta_interest));
     // re-organized the score statistics and estimate covariance matrix based on the parameters of interest
     arma::colvec A = colSums_c(Score_reduce_beta_perm_reorg)(idx);
-    arma::mat tmp1(n_par_beta_interest, n_par_beta_interest);
-    tmp1.eye();
-    arma::mat B1 = arma::join_rows(tmp1,-Hess_reduce_beta_perm_reorg(arma::span(0,(n_par_beta_interest-1)),arma::span(n_par_beta_interest,(n_beta-1))) *
-      arma::pinv(Hess_reduce_beta_perm_reorg(arma::span(n_par_beta_interest,(n_beta-1)),arma::span(n_par_beta_interest,(n_beta-1)))));
+    // arma::mat tmp1(n_par_beta_interest, n_par_beta_interest);
+    // tmp1.eye();
+    // ginv(Hess.reduce.reorg[(1:n.par.interest.beta), (1:n.par.interest.beta)] - crossprod(t(Hess.reduce.reorg[(1:n.par.interest.beta), ((n.par.interest.beta + 1):n.beta)]),
+    //                         crossprod(t(ginv(Hess.reduce.reorg[((n.par.interest.beta + 1):n.beta), ((n.par.interest.beta + 1):n.beta)])), Hess.reduce.reorg[((n.par.interest.beta + 1):n.beta), (1:n.par.interest.beta)])))
+
+    arma::mat B1 = arma::pinv(Hess_reduce_beta_perm_reorg(arma::span(0,(n_par_beta_interest-1)),arma::span(0,(n_par_beta_interest-1))) - Hess_reduce_beta_perm_reorg(arma::span(0,(n_par_beta_interest-1)),arma::span(n_par_beta_interest,(n_beta-1))) *
+                              arma::pinv(Hess_reduce_beta_perm_reorg(arma::span(n_par_beta_interest,(n_beta-1)), arma::span(n_par_beta_interest,(n_beta-1)))) * Hess_reduce_beta_perm_reorg(arma::span(n_par_beta_interest,(n_beta-1)),arma::span(0,(n_par_beta_interest-1))));
+    // arma::mat B1 = arma::join_rows(tmp1,-Hess_reduce_beta_perm_reorg(arma::span(0,(n_par_beta_interest-1)),arma::span(n_par_beta_interest,(n_beta-1))) *
+    //   arma::pinv(Hess_reduce_beta_perm_reorg(arma::span(n_par_beta_interest,(n_beta-1)),arma::span(n_par_beta_interest,(n_beta-1)))));
+    arma::colvec beta_hat = B1 * A;
+    // U <- Score.reduce.reorg[ ,1:n.par.interest.beta] - t(crossprod(t(Hess.reduce.reorg[(1:n.par.interest.beta), ((n.par.interest.beta + 1):n.beta)]),
+    //                        crossprod(t(ginv(Hess.reduce.reorg[((n.par.interest.beta + 1):n.beta), ((n.par.interest.beta + 1):n.beta)])), t(Score.reduce.reorg[ ,((n.par.interest.beta + 1):n.beta)]))))
+    arma::mat U = Score_reduce_beta_perm_reorg.cols(arma::span(0,(n_par_beta_interest-1))) - Score_reduce_beta_perm_reorg.cols(arma::span(n_par_beta_interest,(n_beta-1))) *
+      arma::pinv(Hess_reduce_beta_perm_reorg(arma::span(n_par_beta_interest,(n_beta-1)), arma::span(n_par_beta_interest,(n_beta-1)))).t() * Hess_reduce_beta_perm_reorg(arma::span(0,(n_par_beta_interest-1)),arma::span(n_par_beta_interest,(n_beta-1))).t();
     arma::mat B2(n_beta, n_beta);
     B2.zeros();
     for(int j = 0; j < n; j++){
-       B2 += Score_reduce_beta_perm_reorg.row(j).t() * Score_reduce_beta_perm_reorg.row(j) ;
+       B2 += U.row(j).t() * U.row(j) ;
     }
-    arma::mat B = B1 * B2 * B1.t();
-    arma::mat t = A.t() * arma::pinv(B) * A;
-    double score_stat_beta_perm = t(0,0);
-    score_beta[i] = A; // restore the score statistics and estimated covariance matrix in lists which are of necessity for some meta-analysis methods
-    est_cov[i] = B;
+    arma::mat cov_beta = B1 * B2 * B1;
+    // arma::mat t = A.t() * arma::pinv(B) * A;
+    // double score_stat_beta_perm = t(0,0);
+    score_beta[i] = beta_hat; // restore the score statistics and estimated covariance matrix in lists which are of necessity for some meta-analysis methods
+    est_cov[i] = cov_beta;
     arma::vec mat_idx  = col_index_list[i];
     arma::uvec index = arma::conv_to< arma::uvec >::from(mat_idx - 1);
-    est_cov_meta.submat(index,index)  +=  B;
-    score_stat_beta(index) = score_stat_beta(index) + A;
-    score_stat_beta_vec(i) = score_stat_beta_perm;
+    est_cov_meta.submat(index,index)  += arma::pinv(cov_beta);
+    score_stat_beta(index) = score_stat_beta(index) + arma::pinv(cov_beta) * beta_hat;
+    // score_stat_beta_vec(i) = score_stat_beta_perm;
   }
-  return Rcpp::List::create(Rcpp::Named("score_statistics") = score_stat_beta_vec,
-                            Rcpp::Named("score_beta_meta") = score_stat_beta,
+  return Rcpp::List::create(Rcpp::Named("score_beta_meta") = score_stat_beta,
                             Rcpp::Named("score_beta") = score_beta,
                             Rcpp::Named("est_cov_meta") = est_cov_meta,
                             Rcpp::Named("est_cov") = est_cov);
@@ -147,29 +156,30 @@ Rcpp::List score_test_stat_zero_meta_resampling_c(const Rcpp::List& Z_perm_list,
     arma::uvec idx = arma::conv_to< arma::uvec >::from(arma::linspace(0, (n_par_alpha_interest-1), n_par_alpha_interest));
     // re-organized the score statistics and estimate covariance matrix based on the parameters of interest
     arma::colvec A = colSums_c(Score_reduce_alpha_perm_reorg)(idx);
-    arma::mat tmp4(n_par_alpha_interest, n_par_alpha_interest);
-    tmp4.eye();
-    arma::mat B1 = arma::join_rows(tmp4,-Hess_reduce_alpha_perm_reorg(arma::span(0,(n_par_alpha_interest-1)),arma::span(n_par_alpha_interest,(n_alpha-1))) *
-      arma::pinv(Hess_reduce_alpha_perm_reorg(arma::span(n_par_alpha_interest,(n_alpha-1)),arma::span(n_par_alpha_interest,(n_alpha-1)))));
+    arma::mat B1 = arma::pinv(Hess_reduce_alpha_perm_reorg(arma::span(0,(n_par_alpha_interest-1)),arma::span(0,(n_par_alpha_interest-1))) - Hess_reduce_alpha_perm_reorg(arma::span(0,(n_par_alpha_interest-1)),arma::span(n_par_alpha_interest,(n_alpha-1))) *
+      arma::pinv(Hess_reduce_alpha_perm_reorg(arma::span(n_par_alpha_interest,(n_alpha-1)), arma::span(n_par_alpha_interest,(n_alpha-1)))) * Hess_reduce_alpha_perm_reorg(arma::span(n_par_alpha_interest,(n_alpha-1)),arma::span(0,(n_par_alpha_interest-1))));
+    // arma::mat B1 = arma::join_rows(tmp1,-Hess_reduce_beta_perm_reorg(arma::span(0,(n_par_beta_interest-1)),arma::span(n_par_beta_interest,(n_beta-1))) *
+    //   arma::pinv(Hess_reduce_beta_perm_reorg(arma::span(n_par_beta_interest,(n_beta-1)),arma::span(n_par_beta_interest,(n_beta-1)))));
+    arma::colvec beta_hat = B1 * A;
+    // U <- Score.reduce.reorg[ ,1:n.par.interest.beta] - t(crossprod(t(Hess.reduce.reorg[(1:n.par.interest.beta), ((n.par.interest.beta + 1):n.beta)]),
+    //                        crossprod(t(ginv(Hess.reduce.reorg[((n.par.interest.beta + 1):n.beta), ((n.par.interest.beta + 1):n.beta)])), t(Score.reduce.reorg[ ,((n.par.interest.beta + 1):n.beta)]))))
+    arma::mat U = Score_reduce_alpha_perm_reorg.cols(arma::span(0,(n_par_alpha_interest-1))) - Score_reduce_alpha_perm_reorg.cols(arma::span(n_par_alpha_interest,(n_alpha-1))) *
+      arma::pinv(Hess_reduce_alpha_perm_reorg(arma::span(n_par_alpha_interest,(n_alpha-1)), arma::span(n_par_alpha_interest,(n_alpha-1)))).t() * Hess_reduce_alpha_perm_reorg(arma::span(0,(n_par_alpha_interest-1)),arma::span(n_par_alpha_interest,(n_alpha-1))).t();
     arma::mat B2(n_alpha, n_alpha);
     B2.zeros();
     for(int j = 0; j < n; j++){
-      B2 = B2 + Score_reduce_alpha_perm_reorg.row(j).t() * Score_reduce_alpha_perm_reorg.row(j) ;
+      B2 += U.row(j).t() * U.row(j) ;
     }
-    arma::mat B = B1 * B2 * B1.t();
-    arma::mat t = A.t() * arma::pinv(B) * A;
-    double score_stat_alpha_perm = t(0,0);
-    score_stat_alpha_vec(i) = score_stat_alpha_perm;
-    score_alpha[i] = A; // restore the score statistics and estimated covariance matrix in lists which are of necessity for some meta-analysis methods
-    est_cov[i] = B;
+    arma::mat cov_beta = B1 * B2 * B1;
+    score_alpha[i] = beta_hat; // restore the score statistics and estimated covariance matrix in lists which are of necessity for some meta-analysis methods
+    est_cov[i] = cov_beta;
     arma::vec mat_idx  = col_zero_index_list[i];
-    arma::uvec index = arma::conv_to< arma::uvec >::from(mat_idx-1);
-    est_cov_meta.submat(index,index)  += B;
-    score_stat_alpha(index) += A;
+    arma::uvec index = arma::conv_to< arma::uvec >::from(mat_idx - 1);
+    est_cov_meta.submat(index,index)  += arma::pinv(cov_beta);
+    score_stat_alpha(index) = score_stat_alpha(index) + arma::pinv(cov_beta) * beta_hat;
   }
   // arma::mat est_cov_inv = arma::pinv(est_cov_meta);
-  return Rcpp::List::create(Rcpp::Named("score_statistics") = score_stat_alpha_vec,
-                            Rcpp::Named("score_alpha_meta") = score_stat_alpha,
+  return Rcpp::List::create(Rcpp::Named("score_alpha_meta") = score_stat_alpha,
                             Rcpp::Named("score_alpha") = score_alpha,
                             Rcpp::Named("est_cov_meta") = est_cov_meta,
                             Rcpp::Named("est_cov") = est_cov);

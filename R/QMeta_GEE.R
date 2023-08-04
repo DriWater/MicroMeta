@@ -176,7 +176,7 @@
 
 
   ########### perform score test
-  n.alpha = m *p
+  n.alpha = m * p
   par.interest.index.alpha =  kronecker( ((0:(m-1))*p), rep(1,length(Z.par.index))) + Z.par.index
   n.par.interest.alpha = length(par.interest.index.alpha)
   est.reduce.alpha = rep(NA, n.alpha)
@@ -202,19 +202,24 @@
 
   A = colSums(Score.reduce.reorg)[1:n.par.interest.alpha]
 
-  B1 = cbind(diag(n.par.interest.alpha), tcrossprod(-Hess.reduce.reorg[(1:n.par.interest.alpha), ((n.par.interest.alpha+1):n.alpha)] , t(ginv(Hess.reduce.reorg[((n.par.interest.alpha+1):n.alpha), ((n.par.interest.alpha+1):n.alpha)]))))
+  B1 <- ginv(Hess.reduce.reorg[(1:n.par.interest.alpha), (1:n.par.interest.alpha)] - crossprod(t(Hess.reduce.reorg[(1:n.par.interest.alpha), ((n.par.interest.alpha + 1):n.alpha)]),
+                                                                                             crossprod(t(ginv(Hess.reduce.reorg[((n.par.interest.alpha + 1):n.alpha), ((n.par.interest.alpha + 1):n.alpha)])), Hess.reduce.reorg[((n.par.interest.alpha + 1):n.alpha), (1:n.par.interest.alpha)])))
 
-  B2 =  matrix(0, n.alpha, n.alpha)
-  for(i in 1:n){
-    B2 = B2 + Score.reduce.reorg[i,] %o% Score.reduce.reorg[i,]
+  alpha.hat <- crossprod(t(B1), A)
+
+  U <- Score.reduce.reorg[ ,1:n.par.interest.alpha] - t(crossprod(t(Hess.reduce.reorg[(1:n.par.interest.alpha), ((n.par.interest.alpha + 1):n.alpha)]),
+                                                                 crossprod(t(ginv(Hess.reduce.reorg[((n.par.interest.alpha + 1):n.alpha), ((n.par.interest.alpha + 1):n.alpha)])), t(Score.reduce.reorg[ ,((n.par.interest.alpha + 1):n.alpha)]))))
+
+  B2 <- matrix(0, n.alpha, n.alpha)
+
+  for (i in 1:n) {
+    B2 <- B2 + U[i, ] %o% U[i, ]
   }
 
-  B = crossprod(t(B1), tcrossprod(B2, B1))
-  score.stat.alpha = crossprod( A, crossprod(t(ginv(B)), A))
-  score.pvalue.alpha = 1 - pchisq(score.stat.alpha, n.par.interest.alpha)
+  cov.alpha = crossprod(t(B1), crossprod(t(B2), B1))
 
   # save these outcomes for later resampling test
-  return(list(score.df.alpha=n.par.interest.alpha, score.stat.alpha = score.stat.alpha, score.alpha = A, est.cov.zero=B, score.pvalue.alpha=score.pvalue.alpha, vA.list=vA.list, Vinv.list=Vinv.list, VY.list=VY.list )   )
+  return(list(score.df.alpha = n.par.interest.alpha,  score.alpha = alpha.hat, est.cov.zero=cov.alpha, vA.list=vA.list, Vinv.list=Vinv.list, VY.list=VY.list )   )
 
 }
 
@@ -222,14 +227,14 @@
 .Score.test.stat.zero.meta.4Gresampling <- function(Z.perm.list, Z.par.index, n.par.interest.alpha, col.zero.index.list, vA.list.meta, Vinv.list.meta, VY.list.meta, Method = "FE-MV"){
 
   # the total study number
-  iter.num = length(Z.perm.list)
+  stu.num = length(Z.perm.list)
   score.stat.alpha = NULL
   score.alpha = NULL
   score.pvalue.alpha = NULL
   est.cov.zero = NULL
   score.alpha.meta  = rep(0,n.par.interest.alpha) ## create a vector which length is the number of parameter of interest to restore the score statistics for our meta analysis
   est.cov.meta = matrix(0, nrow = n.par.interest.alpha, ncol = n.par.interest.alpha) ## ## create a matrix which dimension is the number of parameter of interest to restore the score statistics for our estimate of covariance matrix
-  for ( j in 1:iter.num){
+  for ( j in 1:stu.num){
     vA.list = vA.list.meta[[j]]
     VY.list = VY.list.meta[[j]]
     Vinv.list = Vinv.list.meta[[j]]
@@ -270,24 +275,28 @@
                               cbind( matrix(Hess.reduce.alpha.perm[-par.index.alpha, par.index.alpha], nrow=n.alpha - n.par.alpha), matrix(Hess.reduce.alpha.perm[-par.index.alpha, -par.index.alpha], nrow= n.alpha - n.par.alpha)))
 
 
-    A = colSums(Score.reduce.reorg)[1:n.par.alpha]
+    A = colSums(Score.reduce.reorg)[1:n.par.interest.alpha]
 
-    B1 = cbind(diag(n.par.alpha), tcrossprod(-Hess.reduce.reorg[(1:n.par.alpha), ((n.par.alpha+1):n.alpha)], t(ginv(Hess.reduce.reorg[((n.par.alpha+1):n.alpha), ((n.par.alpha+1):n.alpha)]))))
+    B1 <- ginv(Hess.reduce.reorg[(1:n.par.interest.alpha), (1:n.par.interest.alpha)] - crossprod(t(Hess.reduce.reorg[(1:n.par.interest.alpha), ((n.par.interest.alpha + 1):n.alpha)]),
+                                                                                                 crossprod(t(ginv(Hess.reduce.reorg[((n.par.interest.alpha + 1):n.alpha), ((n.par.interest.alpha + 1):n.alpha)])), Hess.reduce.reorg[((n.par.interest.alpha + 1):n.alpha), (1:n.par.interest.alpha)])))
 
-    B2 =  matrix(0, n.alpha, n.alpha)
-    for(i in 1:n){
-      B2 = B2 + Score.reduce.reorg[i,] %o% Score.reduce.reorg[i,]
+    alpha.hat <- crossprod(t(B1), A)
+
+    U <- Score.reduce.reorg[ ,1:n.par.interest.alpha] - t(crossprod(t(Hess.reduce.reorg[(1:n.par.interest.alpha), ((n.par.interest.alpha + 1):n.alpha)]),
+                                                                    crossprod(t(ginv(Hess.reduce.reorg[((n.par.interest.alpha + 1):n.alpha), ((n.par.interest.alpha + 1):n.alpha)])), t(Score.reduce.reorg[ ,((n.par.interest.alpha + 1):n.alpha)]))))
+
+    B2 <- matrix(0, n.alpha, n.alpha)
+
+    for (i in 1:n) {
+      B2 <- B2 + U[i, ] %o% U[i, ]
     }
 
-    B = crossprod(t(B1), tcrossprod(B2, B1))
-    score.stat.alpha.perm = crossprod( A, crossprod(t(ginv(B)), A))
-    score.stat.alpha = append(score.stat.alpha, score.stat.alpha.perm)
-    score.alpha[[j]] = A # restore the score statistics and estimated covariance matrix in lists which are of necessity for some meta-analysis methods
-    est.cov.zero[[j]] = B
-    score.pvalue.alpha = append(score.pvalue.alpha, (1 - pchisq(score.stat.alpha.perm, n.par.interest.alpha)))
+    cov.alpha = crossprod(t(B1), crossprod(t(B2), B1))
+    score.alpha[[j]] = alpha.hat # restore the score statistics and estimated covariance matrix in lists which are of necessity for some meta-analysis methods
+    est.cov.zero[[j]] = cov.alpha
     idx = col.zero.index.list[[j]] # the index of alpha parameter of interest in j-th study
-    score.alpha.meta[idx] =  score.alpha.meta[idx] +  A # add according to the index of parameter of interest for each study
-    est.cov.meta[idx, idx] =  est.cov.meta[idx, idx] + B
+    score.alpha.meta[idx] =  score.alpha.meta[idx] + crossprod(ginv(cov.alpha), alpha.hat) # add according to the index of parameter of interest for each study
+    est.cov.meta[idx, idx] =  est.cov.meta[idx, idx] + ginv(cov.alpha)
   }
   # save the index of those elements that have values greater than zero in score.aplha.meta vector
   save.index.zero = which(abs(score.alpha.meta) >= 1e-7)
@@ -295,54 +304,40 @@
   score.alpha.meta =  score.alpha.meta[save.index.zero]
   est.cov.meta =  est.cov.meta[save.index.zero,save.index.zero] # the summation of  estimate covariance for each study
   est.cov.inv = ginv(est.cov.meta)
-  weight.cov.zero = NULL
-  if (Method == "FE-MV")
-  {
-    score.stat.alpha.perm = crossprod( score.alpha.meta, crossprod(t(est.cov.inv), score.alpha.meta)) # Fixed effect multivariate test
+  if(Method == "FE-MV"){
+    score.stat.alpha.perm = crossprod( score.alpha.meta,crossprod(t(est.cov.inv), score.alpha.meta))
   }
-  # if (Method == "SKAT")
-  # {
-  #   W = diag(1,nrow = n.par.save.alpha)
-  #   eigen.cov.zero <- eigen(est.cov.meta)
-  #   eigen.cov.zero.sqrt = eigen.cov.zero$vectors %*% diag(sqrt(eigen.cov.zero$values),nrow = length(eigen.cov.zero$values)) %*% solve(eigen.cov.zero$vectors)
-  #   weight.cov.zero = eigen(eigen.cov.zero.sqrt %*% W %*% eigen.cov.zero.sqrt)$values
-  #   score.stat.alpha.perm = score.alpha.meta %*% W %*% score.alpha.meta
-  # }
-  if (Method == "FE-VC")
-  {
-    # weight.cov.zero = eigen(est.cov.inv)$values #eign.val/sum(eign.val)
-    #
-    score.stat.alpha.perm = crossprod( score.alpha.meta, crossprod(t(est.cov.inv), crossprod( t(est.cov.inv), score.alpha.meta))) #Fixed effect variance component test
+  if(Method == "FE-VC"){
+    score.stat.alpha.perm = crossprod(score.alpha.meta) #SKAT-VC
   }
-  if(Method == "Het-VC"){
-    score.stat.alpha.perm = 0
-
-    for( i in 1:iter.num ){
+  if(Method == "RE-MV"){
+    U.theta = 0
+    V.theta = 0
+    for( i in 1:stu.num ){
       est.inv = ginv(est.cov.zero[[i]])
-      score.stat.alpha.perm = score.stat.alpha.perm + tcrossprod(crossprod(score.alpha[[i]], est.inv), crossprod(score.alpha[[i]], est.inv)) # Het-VC test
+      U.theta = U.theta + 1/2 * crossprod(crossprod(t(est.inv), score.alpha[[i]])) - 1/2 * tr(est.inv)
+      V.theta = V.theta + 1/2 * tr(crossprod(est.inv))
     }
+    score.stat.alpha.perm = crossprod( score.alpha.meta,crossprod(t(est.cov.inv), score.alpha.meta)) + U.theta^2/V.theta
   }
-  if(Method == "RE-VC"){ # RE-VC test
-    U.tau.b = 0
-    a2 = 0
-    for( i in 1:iter.num ){
-      est.inv = ginv(est.cov.zero[[i]])
-      U.tau.b = U.tau.b + tcrossprod(crossprod(score.alpha[[i]],est.inv), crossprod(score.alpha[[i]], est.inv))
-      a2 = a2 + sum(diag(crossprod(t(est.inv),est.inv))) # when \tau matrix and W matrix is identity the elements in upper left, bottom right as well as bottom left are the same in RE-VC test
+  if(Method == "RE-VC"){
+    U.theta = 0
+    V.theta = 0
+    U.tau = 0
+    est.inv.sum = 0
+    for( i in 1:stu.num){
+      est.inv = ginv(est.cov.zero[[i]])# calculate the generalized inverse for each estimate covariance for each study
+      U.theta = U.theta +  1/2 * crossprod(crossprod(t(est.inv), score.alpha[[i]])) - 1/2 * tr(est.inv)
+      # when \tau matrix and W matrix is identity the elements in upper left, bottom right as well as bottom left are the same in RE-VC test
+      V.theta = V.theta + 1/2 * tr(crossprod(est.inv))
+      U.tau = U.tau - 1/2 * tr(est.inv)
+      est.inv.sum = est.inv.sum + est.inv
     }
-    a1 = sum(diag(crossprod(t(est.cov.inv),est.cov.inv)))
-    U.tau.b = 1/2 * U.tau.b + 1/2 * sum(diag(est.cov.inv))
-    U.tau.w = 1/2 * crossprod( score.alpha.meta, crossprod(t(est.cov.inv), crossprod( t(est.cov.inv), score.alpha.meta)))
-    + 1/2 * sum(diag(est.cov.inv))
-    # the score statistic for RE-VC test
-    score.stat.alpha.perm = crossprod(c(U.tau.w, U.tau.b), crossprod(1/2 * matrix(c(a1,a2,a2,a2),ncol = 2), c(U.tau.w, U.tau.b)))
+    V.tau = 1/2 * tr(crossprod(est.inv.sum))
+    U.tau = 1/2 * crossprod(score.alpha.meta) + U.tau
+    score.stat.alpha.perm = crossprod(c(U.tau, U.theta), crossprod(ginv(matrix(c(V.tau,rep(V.theta,3)),ncol = 2)), c(U.tau, U.theta)))
   }
-  # if (Method == "Fisher")
-  # {
-  #   score.stat.alpha.perm = -2 * sum(log(score.pvalue.alpha))
-  # }
-
-  return(list(score.stat.alpha.perm = as.numeric(score.stat.alpha.perm),weight.cov.zero = weight.cov.zero))
+  return(as.numeric(score.stat.alpha.perm))
 
 }
 
@@ -351,72 +346,62 @@
   tmp = score_test_stat_zero_meta_resampling_c(Z.perm.list, col.zero.index.list, vA.list.meta, Vinv.list.meta, VY.list.meta, Z.par.index, n.par.interest.alpha)
   est.cov.meta = tmp$est_cov_meta
   score.alpha.meta = tmp$score_alpha_meta
-  est.cov = tmp$est_cov
+  est.cov.zero = tmp$est_cov
   score.alpha = tmp$score_alpha
   # save the index of those elements that have values greater than zero in score.aplha.meta vector
   save.index.zero = which(abs(score.alpha.meta) >= 1e-7)
   score.alpha.meta = score.alpha.meta[save.index.zero]
   est.cov.meta = est.cov.meta[save.index.zero,save.index.zero]
   est.cov.inv = ginv(est.cov.meta)
-  iter.num = length(Z.perm.list)
-  if (Method == "FE-MV")
-  {
-    score.stat.alpha.perm = crossprod(score.alpha.meta, crossprod(t(est.cov.inv), score.alpha.meta)) # Fixed effect multivariate test
+  stu.num = length(Z.perm.list)
+  if(Method == "FE-MV"){
+    score.stat.alpha.perm = crossprod( score.alpha.meta,crossprod(t(est.cov.inv), score.alpha.meta))
   }
-  # if (Method == "SKAT")
-  # {
-  #   W = diag(1,nrow = n.par.save.alpha)
-  #   eigen.cov.zero <- eigen(est.cov.meta)
-  #   eigen.cov.zero.sqrt = eigen.cov.zero$vectors %*% diag(sqrt(eigen.cov.zero$values),nrow = length(eigen.cov.zero$values)) %*% solve(eigen.cov.zero$vectors)
-  #   weight.cov.zero = eigen(eigen.cov.zero.sqrt %*% W %*% eigen.cov.zero.sqrt)$values
-  #   score.stat.alpha.perm = score.alpha.meta %*% W %*% score.alpha.meta
-  # }
-  if (Method == "FE-VC")
-  {
-    score.stat.alpha.perm = crossprod(score.alpha.meta, crossprod(t(est.cov.inv ), crossprod(t(est.cov.inv ), score.alpha.meta))) #Fixed effect variance component test
+  if(Method == "FE-VC"){
+    score.stat.alpha.perm = crossprod(score.alpha.meta)
   }
-  # if (Method == "Fisher")
-  # {
-  #   score.stat.alpha.perm = -2 * sum(log(score.pvalue.alpha))
-  # }
-  if(Method == "Het-VC"){
-    score.stat.alpha.perm = 0
-
-    for( i in 1:iter.num ){
-      est.inv = ginv(est.cov[[i]])
-      score.stat.alpha.perm = score.stat.alpha.perm + tcrossprod(crossprod(score.alpha[[i]], est.inv), crossprod(score.alpha[[i]], est.inv))
+  if(Method == "RE-MV"){
+    U.theta = 0
+    V.theta = 0
+    for( i in 1:stu.num ){
+      est.inv = ginv(est.cov.zero[[i]])
+      U.theta = U.theta + 1/2 * crossprod(crossprod(t(est.inv), score.alpha[[i]])) - 1/2 * tr(est.inv)
+      V.theta = V.theta + 1/2 * tr(crossprod(est.inv))
     }
+    score.stat.alpha.perm = crossprod( score.alpha.meta,crossprod(t(est.cov.inv), score.alpha.meta)) + U.theta^2/V.theta
   }
   if(Method == "RE-VC"){
-    U.tau.b = 0
-    a2 = 0
-    for( i in 1:iter.num ){
-      est.inv = ginv(est.cov[[i]])
-      U.tau.b = U.tau.b + tcrossprod(crossprod(score.alpha[[i]],est.inv), crossprod(score.alpha[[i]], est.inv))
-      a2 = a2 + sum(diag(crossprod(t(est.inv),est.inv)))
+    U.theta = 0
+    V.theta = 0
+    U.tau = 0
+    est.inv.sum = 0
+    for( i in 1:stu.num){
+      est.inv = ginv(est.cov.zero[[i]])# calculate the generalized inverse for each estimate covariance for each study
+      U.theta = U.theta +  1/2 * crossprod(crossprod(t(est.inv), score.alpha[[i]])) - 1/2 * tr(est.inv)
+      # when \tau matrix and W matrix is identity the elements in upper left, bottom right as well as bottom left are the same in RE-VC test
+      V.theta = V.theta + 1/2 * tr(crossprod(est.inv))
+      U.tau = U.tau - 1/2 * tr(est.inv)
+      est.inv.sum = est.inv.sum + est.inv
     }
-    a1 = sum(diag(crossprod(t(est.cov.inv),est.cov.inv)))
-    U.tau.b = 1/2 * U.tau.b + 1/2 * sum(diag(est.cov.inv))
-    U.tau.w = 1/2 * crossprod( score.alpha.meta, crossprod(t(est.cov.inv), crossprod( t(est.cov.inv), score.alpha.meta)))
-    + 1/2 * sum(diag(est.cov.inv))
-    # when \tau matrix and W matrix is identity the elements in upper left, bottom right as well as bottom left are the same in RE-VC test
-    score.stat.alpha.perm = crossprod(c(U.tau.w, U.tau.b), crossprod(1/2 * matrix(c(a1,a2,a2,a2),ncol = 2), c(U.tau.w, U.tau.b)))
+    V.tau = 1/2 * tr(crossprod(est.inv.sum))
+    U.tau = 1/2 * crossprod(score.alpha.meta) + U.tau
+    score.stat.alpha.perm = crossprod(c(U.tau, U.theta), crossprod(ginv(matrix(c(V.tau,rep(V.theta,3)),ncol = 2)), c(U.tau, U.theta)))
   }
-  return(list(score.stat.alpha.perm = as.numeric(score.stat.alpha.perm)))
+  return(as.numeric(score.stat.alpha.perm))
 
 }
 
 # add 10/22/2022 for adaptive resampling
 .resample.work.zero.meta <- function(Z.list, Z.par.index, n.par.interest.alpha, col.zero.index.list, score.stat.zero.meta, zero.vA.list.meta, zero.Vinv.list.meta, zero.VY.list.meta, start.nperm, end.nperm, n.zero, zero.acc, use.cpp, Method = "FE-MV"){
 
-  iter.num = length(Z.list)
+  stu.num = length(Z.list)
   n.zero.new = n.zero
   zero.acc.new = zero.acc
 
   for(k in start.nperm:end.nperm){
 
     Z.perm.list = Z.list
-    for (i in 1:iter.num){
+    for (i in 1:stu.num){
       idx = sample(1:nrow(Z.list[[i]]))
       Z.perm.list[[i]][,Z.par.index] =  Z.perm.list[[i]][idx,Z.par.index]
     }
@@ -430,7 +415,7 @@
     if(!("try-error" %in% class(tmp))){# if score.stat.alpha.perm exists, then n.one.new + 1
       # if the permutation test statistics greater than original test statistics, cnt + 1
       n.zero.new = n.zero.new + 1
-      if(tmp$score.stat.alpha.perm >= score.stat.zero.meta){
+      if(tmp >= score.stat.zero.meta){
         zero.acc.new = zero.acc.new + 1 # if score.stat.alpha.perm >= score.stat.zero.meta one.acc.new + 1
 
       }
@@ -470,7 +455,7 @@
 # Z.par.index: index for the parameter of interest for the Z part
 
 .Score.test.zero.meta <- function(Y.list, Z.list, Z.par.index, seed=11, resample=FALSE, n.replicates=NULL, use.cpp = F, Method = "FE-MV"){
-  iter.num = length(Z.list)
+  stu.num = length(Z.list)
   p.par = length(Z.par.index)
   m = ncol(Y.list[[1]])
   n = nrow(Y.list[[1]])
@@ -478,7 +463,7 @@
   n.OTU = length(Y.list)
   # the total number of parameter of interest
   n.par.interest.alpha = m*length(Z.par.index)
-  if(! Method %in% c("FE-MV","FE-VC",'Het-VC',"RE-VC")){
+  if(! Method %in% c("FE-MV","FE-VC",'RE-MV',"RE-VC")){
     stop("Error: Please Choose a Proper Meta-analysis Method")
   }
   # check the parameters of interest to ensure the intercept term is not in it
@@ -524,8 +509,8 @@
     col.zero.index.list = list()
     # initialize the score statistics and estimate covariance matrix for meta analysis
     score.alpha.meta  = rep(0,n.par.interest.alpha) ## A
-    est.cov.zero.meta = matrix(0, nrow = n.par.interest.alpha, ncol = n.par.interest.alpha) ## B
-    for(i in 1:iter.num){
+    est.cov.meta = matrix(0, nrow = n.par.interest.alpha, ncol = n.par.interest.alpha) ## B
+    for(i in 1:stu.num){
       Y0 = Y0.list[[i]]
       Z = Z.list[[i]]
       col.zero.index = which(apply(Y0, 2, function(x) length(table(x)) ) > 1) # keep those taxa which have both zero and one (both positive and zero observations)
@@ -548,7 +533,7 @@
         tmp.zero = try( .Score.test.stat.zero(Y0, Z, Z.par.index, "independence") )
       }
       if("try-error" %in% class(tmp.zero)){
-
+        remove.index= append(remove.index,i)
         next
 
       }else{
@@ -566,8 +551,8 @@
         zero.vA.list.meta[[n.zero]] = tmp.zero$vA.list
         zero.Vinv.list.meta[[n.zero]] = tmp.zero$Vinv.list
         zero.VY.list.meta[[n.zero]] = tmp.zero$VY.list
-        score.alpha.meta[idx] =  score.alpha.meta[idx] +  tmp.zero$score.alpha
-        est.cov.zero.meta[idx,idx] =  est.cov.zero.meta[idx,idx] + tmp.zero$est.cov.zero
+        score.alpha.meta[idx] =  score.alpha.meta[idx] + crossprod(ginv(cov.alpha), alpha.hat) # add according to the index of parameter of interest for each study
+        est.cov.meta[idx, idx] =  est.cov.meta[idx, idx] + ginv(cov.alpha)
       }
     }
   }
@@ -581,84 +566,46 @@
     save.index.zero = which(abs(score.alpha.meta) >= 1e-7)
     n.par.save.alpha = length(save.index.zero)
     score.alpha.meta = score.alpha.meta[save.index.zero]
-    est.cov.zero.meta = est.cov.zero.meta[save.index.zero,save.index.zero]
-    est.cov.zero.inv = ginv(est.cov.zero.meta)
-    if (Method == "FE-MV")
-    {
-      score.stat.zero.meta = score.alpha.meta %*% est.cov.zero.inv %*% score.alpha.meta #Fixed effect multivarite test
-      score.pvalue.zero = 1- pchisq(score.stat.zero.meta,df = n.par.save.alpha)
-      df.zero = n.par.save.alpha
+    est.cov.meta = est.cov.meta[save.index.zero,save.index.zero]
+    est.cov.inv = ginv(est.cov.meta)
+    if(Method == "FE-MV"){
+      score.stat.meta = crossprod( score.alpha.meta,crossprod(t(est.cov.inv), score.alpha.meta))
+      score.pvalue = 1- pchisq(score.stat.meta,df = n.par.save.alpha )
+      df = n.par.save.alpha
     }
-    #if (Method == "SKAT")
-    # {
-    #   if(n.zero>0){
-    #     eigen.cov.zero <- eigen(est.cov.zero.meta)
-    #     eigen.cov.zero.sqrt = eigen.cov.zero$vectors %*% diag(sqrt(eigen.cov.zero$values),nrow = length(eigen.cov.zero$values)) %*% solve(eigen.cov.zero$vectors)
-    #     weight.cov.zero = eigen(eigen.cov.zero.sqrt %*% W.zero %*% eigen.cov.zero.sqrt)$values #eign.val/sum(eign.val)
-    #     score.stat.zero.meta = score.alpha.meta %*% W.zero %*% score.alpha.meta
-    #     score.pvalue.zero = davies(score.stat.zero.meta,weight.cov.zero, h = rep(1,n.par.save.alpha), delta = rep(0,n.par.save.alpha), sigma = 0, lim = 10000, acc = 0.0001)$Qq
-    #     score.pvalue.zero = ifelse(score.pvalue.zero>0,score.pvalue.zero,1e-7)
-    #     df.zero = n.par.interest.alpha
-    #   }else{
-    #     score.stat.zero.meta = NA
-    #     score.pvalue.zero = NA
-    #     df.zero = NA
-    #   }
-    #   zero.results = list(score.stat = score.stat.zero.meta, score.pvalue = score.pvalue.zero, df = df.zero)
-    # }
-    if (Method == "FE-VC"){
-      weight.cov.zero = eigen(est.cov.zero.inv)$values
-      score.stat.zero.meta = score.alpha.meta %*% est.cov.zero.inv %*% est.cov.zero.inv %*% score.alpha.meta # Fixed effect variance component test
-      score.pvalue.zero = davies(score.stat.zero.meta, weight.cov.zero, h = rep(1,n.par.save.alpha), delta = rep(0,n.par.save.alpha), sigma = 0, lim = 10000, acc = 0.0001)$Qq
-      score.pvalue.zero = ifelse(score.pvalue.zero>0,score.pvalue.zero,1e-7)
-      df.zero = n.par.save.alpha
+    if(Method == "FE-VC"){
+      weight.cov.meta = eigen(est.cov.meta)$values #eign.val/sum(eign.val)
+      score.stat.meta = crossprod(score.alpha.meta) #SKAT-VC
+      score.pvalue = davies(score.stat.meta, weight.cov.meta, h = rep(1,n.par.save.alpha), delta = rep(0,n.par.save.alpha), sigma = 0, lim = 10000, acc = 0.0001)$Qq
+      score.pvalue = ifelse(score.pvalue>0,score.pvalue,1e-7)
+      df = n.par.save.alpha
     }
-    # if (Method == "Fisher")
-    # {
-    #
-    #   if(n.zero>0){
-    #     score.pvalue.zero = .F.test(score.pvalue.alpha)
-    #     score.stat.zero.meta = score.pvalue.zero
-    #   }else{
-    #     score.stat.zero.meta = NA
-    #     score.pvalue.zero = NA
-    #   }
-    #   zero.results = list(score.stat = score.stat.zero.meta, score.pvalue = score.pvalue.zero)
-    # }
-    # if (Method == "Mix")
-    # {
-    #   if(n.zero>0){
-    #     score.stat.zero.meta = score.alpha.meta %*% ginv(est.cov.zero.meta) %*% score.alpha.meta #FE-Burden
-    #     score.pvalue.zero = 1- pchisq(score.stat.zero.meta,df = n.par.save.alpha)
-    #     df.zero = n.par.save.alpha
-    #   }else{
-    #     score.stat.zero.meta = NA
-    #     score.pvalue.zero = NA
-    #     df.zero = NA
-    #   }
-    #   zero.results = list(score.stat = score.stat.zero.meta, score.pvalue = score.pvalue.zero, df = df.zero)
-    # }
-    if(Method == "Het-VC"){
-      score.stat.zero.meta = 0
-      for( i in 1:n.zero){
+    if(Method == "RE-MV"){
+      U.theta = 0
+      V.theta = 0
+      for( i in 1:n.zero ){
         est.inv = ginv(est.cov.zero[[i]])
-        tmp  = tcrossprod(crossprod(score.alpha[[i]],est.inv), crossprod(score.alpha[[i]], est.inv))
-        score.stat.zero.meta = score.stat.zero.meta + tcrossprod(crossprod(score.alpha[[i]],est.inv), crossprod(score.alpha[[i]], est.inv))
+        U.theta = U.theta + 1/2 * crossprod(crossprod(t(est.inv), score.beta[[i]])) - 1/2 * tr(est.inv)
+        V.theta = V.theta + 1/2 * tr(crossprod(est.inv))
       }
+      score.stat.meta = crossprod( score.beta.meta,crossprod(t(est.cov.inv), score.beta.meta)) + U.theta^2/V.theta
     }
     if(Method == "RE-VC"){
-      U.tau.b = 0
-      a2 = 0
-      for( i in 1:n.zero){
-        est.inv = ginv(est.cov.zero[[i]]) # calculate the generalized inverse for each estimate covariance for each study
-        U.tau.b = U.tau.b + tcrossprod(crossprod(score.alpha[[i]],est.inv), crossprod(score.alpha[[i]], est.inv))
-        a2 = a2 + sum(diag(crossprod(t(est.inv),est.inv)))         # when \tau matrix and W matrix is identity the elements in upper left, bottom right as well as bottom left are the same in RE-VC test
+      U.theta = 0
+      V.theta = 0
+      U.tau = 0
+      est.inv.sum = 0
+      for( i in 1:n.zero ){
+        est.inv = ginv(est.cov.zero[[i]])# calculate the generalized inverse for each estimate covariance for each study
+        U.theta = U.theta +  1/2 * crossprod(crossprod(t(est.inv), score.beta[[i]])) - 1/2 * tr(est.inv)
+        # when \tau matrix and W matrix is identity the elements in upper left, bottom right as well as bottom left are the same in RE-VC test
+        V.theta = V.theta + 1/2 * tr(crossprod(est.inv))
+        U.tau = U.tau - 1/2 * tr(est.inv)
+        est.inv.sum = est.inv.sum + est.inv
       }
-      a1 = sum(diag(crossprod(t(est.cov.zero.inv),est.cov.zero.inv)))
-      U.tau.b = 1/2 * U.tau.b + 1/2 * sum(diag(est.cov.zero.inv))
-      U.tau.w = 1/2 * crossprod( score.alpha.meta, crossprod(t(est.cov.zero.inv), crossprod( t(est.cov.zero.inv), score.alpha.meta)))
-      + 1/2 * sum(diag(est.cov.zero.inv))
-      score.stat.zero.meta = crossprod(c(U.tau.w, U.tau.b), crossprod(1/2 * matrix(c(a1,a2,a2,a2),ncol = 2), c(U.tau.w, U.tau.b)))
+      V.tau = 1/2 * tr(crossprod(est.inv.sum))
+      U.tau = 1/2 * crossprod(score.beta.meta) + U.tau
+      score.stat.meta = crossprod(c(U.tau, U.theta), crossprod(ginv(matrix(c(V.tau,rep(V.theta,3)),ncol = 2)), c(U.tau, U.theta)))
     }
     zero.results = list(score.stat = score.stat.zero.meta, score.pvalue = score.pvalue.zero, df = df.zero)
   }
@@ -752,7 +699,7 @@
 #' @param Z.index a vector indicate the columns in X for the covariate(s) of interest.
 #'
 #' @return A list with this elements
-#'    \item{lineage.pval}{p-values for all lineages. By default ( Method = "FE-MV", n.perm = NULL ), only the asymptotic test will be performed. If the meta-analysis method is random effect methods like RE-VC or Het-VC, then resampling test must be performed.}
+#'    \item{lineage.pval}{p-values for all lineages. By default ( Method = "FE-MV", n.perm = NULL ), only the asymptotic test will be performed. If the meta-analysis method is random effect methods like RE-VC or RE-MV, then resampling test must be performed.}
 #'    \item{sig.lineage}{a vector of significant lineages.}
 #' @export
 #'
@@ -785,7 +732,7 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth
   # if(length(unique(sapply(1:n.OTU,function(j) ncol(OTU[[j]]))))!= 1){
   #   stop("The taxa in each study should be the same")
   # }
-  if(Method %in% c("RE-VC", "Het-VC")){
+  if(Method %in% c("RE-VC", "RE-MV")){
     if(is.null(n.resample)){
       stop("The p-value for random effect meta-analysis method must be got by resampling test")
     }
@@ -863,7 +810,7 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth
       colnames(pval.zero) = paste0("Asymptotic-",Method)
     }else{
       tmp = .Score.test.zero.meta(count, Z, Z.index, seed=11, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = Method)
-      if(Method %in% c("RE-VC", "Het-VC")){
+      if(Method %in% c("RE-VC", "RE-MV")){
         pval.zero = c(tmp$score.Rpvalue)
         names(pval.zero) = paste0("Resampling-",Method)
       }else{
@@ -964,7 +911,7 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth
           else{
             # if n.resample in not null, select the significant lineage according to the resampling pvalue
             #  run test for each lineage
-            if(Method %in% c("RE-VC", "Het-VC")){
+            if(Method %in% c("RE-VC", "RE-MV")){
               tmp = .Score.test.zero.meta(Y, Z, Z.index, seed=11, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = Method)
               pval.zero = cbind(pval.zero, tmp$score.Rpvalue)
             }else{
@@ -985,7 +932,7 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth
       score.zero.tmp = pval.zero[1,]
 
     }else{
-      if(Method %in% c("RE-VC", "Het-VC")){
+      if(Method %in% c("RE-VC", "RE-MV")){
         rownames(pval.zero) = paste0("Resampling-",Method)
         score.zero.tmp = pval.zero[1,]
       }else{
