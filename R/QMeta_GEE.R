@@ -278,12 +278,12 @@
     A = colSums(Score.reduce.reorg)[1:n.par.interest.alpha]
 
     B1 <- ginv(Hess.reduce.reorg[(1:n.par.interest.alpha), (1:n.par.interest.alpha)] - crossprod(t(Hess.reduce.reorg[(1:n.par.interest.alpha), ((n.par.interest.alpha + 1):n.alpha)]),
-                                                                                                 crossprod(t(ginv(Hess.reduce.reorg[((n.par.interest.alpha + 1):n.alpha), ((n.par.interest.alpha + 1):n.alpha)])), Hess.reduce.reorg[((n.par.interest.alpha + 1):n.alpha), (1:n.par.interest.alpha)])))
+               crossprod(t(ginv(Hess.reduce.reorg[((n.par.interest.alpha + 1):n.alpha), ((n.par.interest.alpha + 1):n.alpha)])), Hess.reduce.reorg[((n.par.interest.alpha + 1):n.alpha), (1:n.par.interest.alpha)])))
 
     alpha.hat <- crossprod(t(B1), A)
 
     U <- Score.reduce.reorg[ ,1:n.par.interest.alpha] - t(crossprod(t(Hess.reduce.reorg[(1:n.par.interest.alpha), ((n.par.interest.alpha + 1):n.alpha)]),
-                                                                    crossprod(t(ginv(Hess.reduce.reorg[((n.par.interest.alpha + 1):n.alpha), ((n.par.interest.alpha + 1):n.alpha)])), t(Score.reduce.reorg[ ,((n.par.interest.alpha + 1):n.alpha)]))))
+                                                         crossprod(t(ginv(Hess.reduce.reorg[((n.par.interest.alpha + 1):n.alpha), ((n.par.interest.alpha + 1):n.alpha)])), t(Score.reduce.reorg[ ,((n.par.interest.alpha + 1):n.alpha)]))))
 
     B2 <- matrix(0, n.alpha, n.alpha)
 

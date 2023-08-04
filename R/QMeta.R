@@ -225,8 +225,8 @@
 
     beta.hat <- crossprod(t(B1), A)
 
-    U <- Score.reduce.reorg[ ,1:n.par.interest.beta] - t(crossprod(t(Hess.reduce.reorg[(1:n.par.interest.beta), ((n.par.interest.beta + 1):n.beta)]),
-          crossprod(t(ginv(Hess.reduce.reorg[((n.par.interest.beta + 1):n.beta), ((n.par.interest.beta + 1):n.beta)])), t(Score.reduce.reorg[ ,((n.par.interest.beta + 1):n.beta)]))))
+    U <- Score.reduce.reorg[ ,1:n.par.interest.beta] - crossprod(t(Score.reduce.reorg[ ,((n.par.interest.beta + 1):n.beta)]),
+          tcrossprod(ginv(Hess.reduce.reorg[((n.par.interest.beta + 1):n.beta), ((n.par.interest.beta + 1):n.beta)]), Hess.reduce.reorg[(1:n.par.interest.beta), ((n.par.interest.beta + 1):n.beta)] ))
 
     B2 <- matrix(0, n.beta, n.beta)
 
@@ -293,22 +293,21 @@
 
 
     # re-organized the score statistics and estimate covariance matrix based on the parameter of interest
-    A <- colSums(Score.reduce.reorg)[1:n.par.interest.beta]
+    A <- colSums(Score.reduce.beta.perm.reorg)[1:n.par.interest.beta]
 
-    B1 <- ginv(Hess.reduce.reorg[(1:n.par.interest.beta), (1:n.par.interest.beta)] - crossprod(t(Hess.reduce.reorg[(1:n.par.interest.beta), ((n.par.interest.beta + 1):n.beta)]),
-                                                                                               crossprod(t(ginv(Hess.reduce.reorg[((n.par.interest.beta + 1):n.beta), ((n.par.interest.beta + 1):n.beta)])), Hess.reduce.reorg[((n.par.interest.beta + 1):n.beta), (1:n.par.interest.beta)])))
+    B1 <- ginv(Hess.reduce.beta.perm.reorg[(1:n.par.interest.beta), (1:n.par.interest.beta)] - crossprod(t(Hess.reduce.beta.perm.reorg[(1:n.par.interest.beta), ((n.par.interest.beta + 1):n.beta)]),
+                                                                                               crossprod(t(ginv(Hess.reduce.beta.perm.reorg[((n.par.interest.beta + 1):n.beta), ((n.par.interest.beta + 1):n.beta)])), Hess.reduce.beta.perm.reorg[((n.par.interest.beta + 1):n.beta), (1:n.par.interest.beta)])))
 
     beta.hat <- crossprod(t(B1), A)
 
-    U <- Score.reduce.reorg[ ,1:n.par.interest.beta] - t(crossprod(t(Hess.reduce.reorg[(1:n.par.interest.beta), ((n.par.interest.beta + 1):n.beta)]),
-                                                                   crossprod(t(ginv(Hess.reduce.reorg[((n.par.interest.beta + 1):n.beta), ((n.par.interest.beta + 1):n.beta)])), t(Score.reduce.reorg[ ,((n.par.interest.beta + 1):n.beta)]))))
+    U <- Score.reduce.beta.perm.reorg[ ,1:n.par.interest.beta] - crossprod(t(Score.reduce.beta.perm.reorg[ ,((n.par.interest.beta + 1):n.beta)]),
+                            tcrossprod(ginv(Hess.reduce.beta.perm.reorg[((n.par.interest.beta + 1):n.beta), ((n.par.interest.beta + 1):n.beta)]), Hess.reduce.beta.perm.reorg[(1:n.par.interest.beta), ((n.par.interest.beta + 1):n.beta)] ))
 
     B2 <- matrix(0, n.beta, n.beta)
 
     for (i in 1:n) {
       B2 <- B2 + U[i, ] %o% U[i, ]
     }
-
     cov.beta = crossprod(t(B1), crossprod(t(B2), B1))
 
     # Generate the test statistics for each study
@@ -579,16 +578,15 @@
       U.theta = 0
       V.theta = 0
       U.tau = 0
-      est.inv.sum = 0
+      est.cov.meta = 0
       for( i in 1:n.pos){
         est.inv = ginv(est.cov[[i]])# calculate the generalized inverse for each estimate covariance for each study
         U.theta = U.theta +  1/2 * crossprod(crossprod(t(est.inv), score.beta[[i]])) - 1/2 * tr(est.inv)
         # when \tau matrix and W matrix is identity the elements in upper left, bottom right as well as bottom left are the same in RE-VC test
         V.theta = V.theta + 1/2 * tr(crossprod(est.inv))
         U.tau = U.tau - 1/2 * tr(est.inv)
-        est.inv.sum = est.inv.sum + est.inv
       }
-      V.tau = 1/2 * tr(crossprod(est.inv.sum))
+      V.tau = 1/2 * tr(crossprod(est.cov.meta))
       U.tau = 1/2 * crossprod(score.beta.meta) + U.tau
       score.stat.meta = crossprod(c(U.tau, U.theta), crossprod(ginv(matrix(c(V.tau,rep(V.theta,3)),ncol = 2)), c(U.tau, U.theta)))
     }
