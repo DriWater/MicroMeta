@@ -157,7 +157,7 @@ Rcpp::List score_test_stat_zero_meta_resampling_c(const Rcpp::List& Z_perm_list,
     // re-organized the score statistics and estimate covariance matrix based on the parameters of interest
     arma::colvec A = colSums_c(Score_reduce_alpha_perm_reorg)(idx);
     arma::mat B1 = arma::pinv(Hess_reduce_alpha_perm_reorg(arma::span(0,(n_par_alpha_interest-1)),arma::span(0,(n_par_alpha_interest-1))) - Hess_reduce_alpha_perm_reorg(arma::span(0,(n_par_alpha_interest-1)),arma::span(n_par_alpha_interest,(n_alpha-1))) *
-      arma::pinv(Hess_reduce_alpha_perm_reorg(arma::span(n_par_alpha_interest,(n_alpha-1)), arma::span(n_par_alpha_interest,(n_alpha-1)))) * Hess_reduce_alpha_perm_reorg(arma::span(n_par_alpha_interest,(n_alpha-1)),arma::span(0,(n_par_alpha_interest-1))));
+                              arma::pinv(Hess_reduce_alpha_perm_reorg(arma::span(n_par_alpha_interest,(n_alpha-1)), arma::span(n_par_alpha_interest,(n_alpha-1)))) * Hess_reduce_alpha_perm_reorg(arma::span(n_par_alpha_interest,(n_alpha-1)),arma::span(0,(n_par_alpha_interest-1))));
     // arma::mat B1 = arma::join_rows(tmp1,-Hess_reduce_beta_perm_reorg(arma::span(0,(n_par_beta_interest-1)),arma::span(n_par_beta_interest,(n_beta-1))) *
     //   arma::pinv(Hess_reduce_beta_perm_reorg(arma::span(n_par_beta_interest,(n_beta-1)),arma::span(n_par_beta_interest,(n_beta-1)))));
     arma::colvec beta_hat = B1 * A;
