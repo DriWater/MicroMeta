@@ -1,4 +1,5 @@
-# one part model
+
+## one part model
 
 .F.test <- function(x) {
   # Fisher's p-value combination
@@ -228,7 +229,7 @@
     U <- Score.reduce.reorg[ ,1:n.par.interest.beta] - crossprod(t(Score.reduce.reorg[ ,((n.par.interest.beta + 1):n.beta)]),
           tcrossprod(ginv(Hess.reduce.reorg[((n.par.interest.beta + 1):n.beta), ((n.par.interest.beta + 1):n.beta)]), Hess.reduce.reorg[(1:n.par.interest.beta), ((n.par.interest.beta + 1):n.beta)] ))
 
-    B2 <- matrix(0, n.beta, n.beta)
+    B2 <- matrix(0, n.par.interest.beta, n.par.interest.beta)
 
     for (i in 1:n) {
       B2 <- B2 + U[i, ] %o% U[i, ]
@@ -248,7 +249,6 @@
   score.stat.beta <- NULL
   score.beta <- NULL
   est.cov <- NULL
-  score.pvalue.beta <- NULL
   # initialize the score statistics and estimate covariance matrix for meta-analysis
   score.beta.meta <- rep(0, n.par.interest.beta)
   est.cov.meta <- matrix(0, nrow = n.par.interest.beta, ncol = n.par.interest.beta)
@@ -303,7 +303,7 @@
     U <- Score.reduce.beta.perm.reorg[ ,1:n.par.interest.beta] - crossprod(t(Score.reduce.beta.perm.reorg[ ,((n.par.interest.beta + 1):n.beta)]),
                             tcrossprod(ginv(Hess.reduce.beta.perm.reorg[((n.par.interest.beta + 1):n.beta), ((n.par.interest.beta + 1):n.beta)]), Hess.reduce.beta.perm.reorg[(1:n.par.interest.beta), ((n.par.interest.beta + 1):n.beta)] ))
 
-    B2 <- matrix(0, n.beta, n.beta)
+    B2 <- matrix(0, n.par.interest.beta, n.par.interest.beta)
 
     for (i in 1:n) {
       B2 <- B2 + U[i, ] %o% U[i, ]
@@ -482,7 +482,6 @@
     # initialize for later use
     score.stat.beta = NULL
     score.beta = NULL
-    score.pvalue.beta = NULL
     score.pvalue = NA
     score.stat.meta = NA
     df = NA
@@ -494,7 +493,7 @@
     # initialize the score statistics and estimate covariance matrix for meta analysis
     score.beta.meta  = rep(0,n.par.interest.beta) ## A
     est.cov.meta = matrix(0, nrow = n.par.interest.beta, ncol = n.par.interest.beta) ## B
-    n.pos = 0
+    ava.cnt = 0
     for(i in 1:stu.num){
       Y = Y.list[[i]]
       col.index = which(colSums(Y)>0) # keep those taxa which have more than one observation in each study
@@ -513,35 +512,33 @@
       }
       col.index = col.index[-length(col.index)]
       n.beta = (m - 1)*p
-      tmp.one = try( .Score.test.stat(Y, X, X.par.index) )
+      tmp.one = try(.Score.test.stat(Y, X, X.par.index))
       if( "try-error" %in% class(tmp.one) ){
         remove.index = append(remove.index,i)
         score.stat.beta = score.stat.beta
         score.beta = score.beta
         est.cov = est.cov
-        score.pvalue.beta = score.pvalue.beta
         S.beta.list.meta = S.beta.list.meta
         I.beta.list.meta = I.beta.list.meta
       }else{
         # number of study which can get score statistics
-        n.pos = n.pos + 1
+        ava.cnt = ava.cnt + 1
         # get the index for parameter of interest after score statistics and estimate covariance matrix are reorginzed
         # different across studies because of different column numbers
         idx = kronecker((col.index-1)*p.par, rep(1,p.par)) + c(1:p.par)
-        col.index.list[[j]] = idx
+        col.index.list[[ava.cnt]] = idx
         score.stat.beta = append(score.stat.beta, tmp.one$score.stat.beta)
-        score.beta[[j]] = tmp.one$score.beta
-        est.cov[[j]] = tmp.one$est.cov
-        score.pvalue.beta = append(score.pvalue.beta, (1 - pchisq(tmp.one$score.stat.beta, n.par.interest.beta)))
-        S.beta.list.meta[[j]] = tmp.one$S.beta.list
-        I.beta.list.meta[[j]] = tmp.one$I.beta.list
+        score.beta[[ava.cnt]] = tmp.one$score.beta
+        est.cov[[ava.cnt]] = tmp.one$est.cov
+        S.beta.list.meta[[ava.cnt]] = tmp.one$S.beta.list
+        I.beta.list.meta[[ava.cnt]] = tmp.one$I.beta.list
         score.beta.meta[idx] =  score.beta.meta[idx] +  crossprod(ginv(tmp.one$est.cov), tmp.one$score.beta)
         est.cov.meta[idx,idx] =  est.cov.meta[idx,idx] + ginv(tmp.one$est.cov)
       }
     }
 
   }
-  if(j>0){
+  if(ava.cnt>0){
     if(length(remove.index) != 0){
       X.list = X.list[-remove.index]
       Y.list = Y.list[-remove.index]
@@ -567,7 +564,7 @@
     if(Method == "RE-MV"){
       U.theta = 0
       V.theta = 0
-      for( i in 1:n.pos){
+      for( i in 1:ava.cnt){
         est.inv = ginv(est.cov[[i]])
         U.theta = U.theta + 1/2 * crossprod(crossprod(t(est.inv), score.beta[[i]])) - 1/2 * tr(est.inv)
         V.theta = V.theta + 1/2 * tr(crossprod(est.inv))
@@ -579,7 +576,7 @@
       V.theta = 0
       U.tau = 0
       est.cov.meta = 0
-      for( i in 1:n.pos){
+      for( i in 1:ava.cnt){
         est.inv = ginv(est.cov[[i]])# calculate the generalized inverse for each estimate covariance for each study
         U.theta = U.theta +  1/2 * crossprod(crossprod(t(est.inv), score.beta[[i]])) - 1/2 * tr(est.inv)
         # when \tau matrix and W matrix is identity the elements in upper left, bottom right as well as bottom left are the same in RE-VC test
@@ -716,6 +713,7 @@ QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, 
   # if(length(unique(sapply(1:n.OTU,function(j) ncol(OTU[[j]]))))!= 1){
   #   stop("The taxa in each study should be the same")
   # }
+  remove.study = NULL
   for(i in 1:n.OTU)
   {
     if(!is.matrix(OTU[[i]])){
@@ -735,17 +733,29 @@ QCAT_Meta <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, 
       print(paste("Remove",length(remove.subject), "samples with read depth less or equal to", min.depth, "in OTU table", i,"\n"))
       X[[i]] = X[[i]][-remove.subject, ,drop=FALSE]
       OTU[[i]] = OTU[[i]][-remove.subject, ,drop=FALSE]
+      if(length(remove.subject) == nrow(OTU[[i]])){
+        remove.study = append(remove.study, i)
+      }
     }
     # drop.col = union(drop.col,which(colSums(OTU[[i]])==0))
   }
-
+  if(length(remove.study) == n.OTU){
+    stop("Please provide proper data")
+  }
   if(missing(X.index)){
     X.index = 1:ncol(X[[1]])
   }
+  if(!is.null(remove.study)){
+    X = X[-remove.study]
+    OTU = OTU[-remove.study]
+    n.OTU = length(OTU)
+  }
   # join all the OTU table
   OTU.comb = as.data.frame(OTU[[1]])
-  for (i in 2:n.OTU){
-    OTU.comb = bind_rows(OTU.comb,as.data.frame(OTU[[i]]))
+  if(n.OTU>1){
+    for (i in 2:n.OTU){
+      OTU.comb = bind_rows(OTU.comb,as.data.frame(OTU[[i]]))
+    }
   }
   OTU.comb[is.na(OTU.comb)] <- 0 # substitute NA to zero (do not matter because those cloumns will de delete during calculation)
   OTU.comb <- as.matrix(OTU.comb)
