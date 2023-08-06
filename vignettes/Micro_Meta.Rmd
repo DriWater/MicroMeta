@@ -99,6 +99,7 @@ library(MASS)
 library(geepack)
 library(CompQuadForm)
 library(microbenchmark)
+library(psych)
 ```
 
 ####  Load required data
@@ -106,6 +107,9 @@ library(microbenchmark)
 data(meta)
 data(count.genus)
 data(tax)
+
+count.genus <- count.genus[-19,] # remove extremely small  observation
+meta <- meta[-19,]
 ```
 
 #### Data Processing
@@ -219,7 +223,7 @@ print(one_part_FE$sig.lineage)
 
 #### Visualization
 
-```{r fig.width= 4, fig.height= 4, fig.align='center', dpi=450}
+```{r fig.width= 4, fig.height= 4, fig.align='center', dpi=450, eval = FALSE}
 p <- ggtree(tree.vis, layout='circular') +
   geom_hilight(node=137, fill="yellow", alpha= 0.6) +
   geom_hilight(node=237, fill="steelblue", alpha= 0.2) +
@@ -249,7 +253,7 @@ print(one_part_RE$sig.lineage)
 
 #### Visualization
 
-```{r fig.width= 4, fig.height= 4, fig.align='center', dpi=450}
+```{r fig.width= 4, fig.height= 4, fig.align='center', dpi=450 ,eval = FALSE}
 p <- ggtree(tree.vis, layout='circular') +
   geom_hilight(node=174, fill="steelblue", alpha= 0.6) +
   geom_hilight(node=154, fill="darkgreen", alpha= 0.6) +
@@ -322,7 +326,7 @@ RE_sig_lineage <- unlist(lapply(1:length(RE_sig_lineage),function(X){tip_num+whi
 print(zero_part_RE$sig.lineage) 
 ```
 
-```{r fig.width= 4, fig.height= 4, fig.align='center', dpi=450}
+```{r fig.width= 4, fig.height= 4, fig.align='center', dpi=450, eval = FALSE}
 
 ## Visualize part of the significant lineages                                        
 p <- ggtree(tree.vis, layout='circular') +
