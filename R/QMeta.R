@@ -478,6 +478,7 @@
     }else{
       Y.list <- Y.list[-remove.study]
       X.list <- X.list[-remove.study]
+      stu.num = length(X.list)
     }
   }
 
