@@ -35,8 +35,10 @@ devtools::install_github("DriWater/MicroMeta", build_vignettes = TRUE)
 ## Examples
 
 ``` r
-library(MicroMeta)
-data("data.meta")
+# library(MicroMeta)
+source("/Users/shurenhe/Documents/Sim_two_part/code/QCAT_Meta_new/QMeta.R")
+load("/Users/shurenhe/Documents/Sim_two_part/code/QCAT_Meta_new/data.meta.rda")
+# data("data.meta")
 head(data.meta$Tax)
 head(data.meta$OTU[[1]])
 head(data.meta$covariate[[1]])
@@ -55,9 +57,9 @@ one_part_MV
 ##### Random effect Meta-analysis method based on QCAT test with resampling p-value performed with all the OTUs.
 
 ``` r
-Method = "Het-SKAT"
-one_part_Het <- QCAT_Meta(data.meta$OTU, data.meta$covariate, 1, Tax = NULL, Method = Method, n.perm = 100, use.cpp = T)
-one_part_Het
+Method = "RE-MV"
+one_part_RE <- QCAT_Meta(data.meta$OTU, data.meta$covariate, 1, Tax = NULL, Method = Method, n.perm = 100, use.cpp = T)
+one_part_RE
 ```
 
 For OTU table with excessive zero counts, we also employ the generalized
@@ -77,7 +79,7 @@ zero_part_MV
 ##### Random effect Meta-analysis method based on QCAT_GEE test with resampling p-value performed for all lineages.
 
 ``` r
-Method = "RE-SKAT"
+Method = "RE-VC"
 zero_part_RE <- QCAT_GEE_Meta(data.meta$OTU, data.meta$covariate, 1, Tax = data.meta$Tax, Method = Method, n.perm = 200, use.cpp = T)
 zero_part_RE
 ```
@@ -88,28 +90,29 @@ zero_part_RE
 
 <div id="ref-tang2017general" class="csl-entry">
 
-<span class="csl-left-margin">1 </span><span
-class="csl-right-inline">Tang Z-Z, Chen G, Alekseyenko AV, Li H. A
-general framework for association analysis of microbial communities on a
-taxonomic tree. *Bioinformatics* 2017; **33**: 1278–85.</span>
+<span class="csl-left-margin">1
+</span><span class="csl-right-inline">Tang Z-Z, Chen G, Alekseyenko AV,
+Li H. A general framework for association analysis of microbial
+communities on a taxonomic tree. *Bioinformatics* 2017; **33**:
+1278–85.</span>
 
 </div>
 
 <div id="ref-lee2013general" class="csl-entry">
 
-<span class="csl-left-margin">2 </span><span
-class="csl-right-inline">Lee S, Teslovich TM, Boehnke M, Lin X. General
-framework for meta-analysis of rare variants in sequencing association
-studies. *The American Journal of Human Genetics* 2013; **93**:
-42–53.</span>
+<span class="csl-left-margin">2
+</span><span class="csl-right-inline">Lee S, Teslovich TM, Boehnke M,
+Lin X. General framework for meta-analysis of rare variants in
+sequencing association studies. *The American Journal of Human Genetics*
+2013; **93**: 42–53.</span>
 
 </div>
 
 <div id="ref-zeger1986longitudinal" class="csl-entry">
 
-<span class="csl-left-margin">3 </span><span
-class="csl-right-inline">Zeger SL, Liang K-Y. Longitudinal data analysis
-for discrete and continuous outcomes. *Biometrics* 1986; :
+<span class="csl-left-margin">3
+</span><span class="csl-right-inline">Zeger SL, Liang K-Y. Longitudinal
+data analysis for discrete and continuous outcomes. *Biometrics* 1986; :
 121–30.</span>
 
 </div>

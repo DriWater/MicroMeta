@@ -34,8 +34,10 @@ devtools::install_github("DriWater/MicroMeta", build_vignettes = TRUE)
 
 ## Examples
 ```{r fig.width=6, fig.height=6, fig.align='center',eval=FALSE}
-library(MicroMeta)
-data("data.meta")
+# library(MicroMeta)
+source("/Users/shurenhe/Documents/Sim_two_part/code/QCAT_Meta_new/QMeta.R")
+load("/Users/shurenhe/Documents/Sim_two_part/code/QCAT_Meta_new/data.meta.rda")
+# data("data.meta")
 head(data.meta$Tax)
 head(data.meta$OTU[[1]])
 head(data.meta$covariate[[1]])
@@ -54,9 +56,9 @@ one_part_MV
 ##### Random effect Meta-analysis method based on QCAT test with resampling p-value performed with all the OTUs.
 
 ```{r fig.width=6, fig.height=6, fig.align='center',eval = F}
-Method = "Het-SKAT"
-one_part_Het <- QCAT_Meta(data.meta$OTU, data.meta$covariate, 1, Tax = NULL, Method = Method, n.perm = 100, use.cpp = T)
-one_part_Het
+Method = "RE-MV"
+one_part_RE <- QCAT_Meta(data.meta$OTU, data.meta$covariate, 1, Tax = NULL, Method = Method, n.perm = 100, use.cpp = T)
+one_part_RE
 ```
 
 For OTU table with excessive zero counts, we also employ the generalized estimating equation (GEE)[@zeger1986longitudinal] method to estimate the zero part of estimate equations. 
@@ -73,7 +75,7 @@ zero_part_MV
 
 ##### Random effect Meta-analysis method based on QCAT_GEE test with resampling p-value performed for all lineages.
 ```{r fig.width=6, fig.height=6, fig.align='center',eval = F}
-Method = "RE-SKAT"
+Method = "RE-VC"
 zero_part_RE <- QCAT_GEE_Meta(data.meta$OTU, data.meta$covariate, 1, Tax = data.meta$Tax, Method = Method, n.perm = 200, use.cpp = T)
 zero_part_RE
 ```
