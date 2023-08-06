@@ -21,7 +21,7 @@ beneficial to solve these problems.
 
 In this R package, *MicroMeta*, I implement both fixed effect
 meta-analysis methods, for example, the FE-VC test, and random effect meta-analysis
-methods such as Het-VC and RE-VC tests based on the summary statistics generated
+methods such as RE-MV and RE-VC tests based on the summary statistics generated
 by the QCAT method. Considering that excessive zero often be observed with microbiome data, I
 employ the generalized estimating equation (GEE) method[@zeger1986longitudinal] to deal with the zero part of two-part 
 model[@tang2017general] which is based on the assumption that the data have a probability mass at zero and a response of positive values.
@@ -45,7 +45,7 @@ its row corresponds to a sample and each column corresponds to an OTU or taxa. T
 
 * `Tax` a matrix defines the taxonomy ranks with each row corresponding to an OTU or a taxa and each column corresponds to a rank (starting from the higher taxonomic level). Row name is mandatory and should be consistent with the column name of the OTU table,  Column name should be formatted as "Rank1", "Rank2 ()"... etc. If provided, tests will be performed for lineages based on the taxonomic rank. The output contains P-values for all lineages; a list of significant lineages controlling the false discovery rate (based on resampling p-value if resampling test was performed); If not provided, one test will be performed with all the OTUs and one p-value will be output. The lowest rank in the Tax matrix must cover all the taxas that appear in the OTU table list.
 
-* `Method` Meta-analysis method to be used in this test. Including fixed effect methods such as FE-MV test and FE-VC test and random effect methods like Het-VC and RE-VC test.
+* `Method` Meta-analysis method to be used in this test. Including fixed effect methods such as FE-MV test and FE-VC test and random effect methods like RE-MV and RE-VC test.
 
 * `min.depth` is a number, if this parameter is set, test will only be performed on samples with depths greater or equal to this value.
 
@@ -206,15 +206,15 @@ tip_num = length(tree.vis$tip.label)
 ```{r}
 ## Asymptotic p-value
 Method = "FE-VC"
-one_part_VC <- QCAT_Meta(otu.tab.lst, X , 1, Tax = Tax, Method = Method, n.perm = NULL, use.cpp = F)
-VC_sig_lineage <- one_part_VC$sig.lineage
-VC_sig_lineage <- str_replace_all(VC_sig_lineage," ", "_")
-#VC_sig_lineage <- VC_sig_lineage[VC_sig_lineage != "2_Bacteria"]
+one_part_FE <- QCAT_Meta(otu.tab.lst, X , 1, Tax = Tax, Method = Method, n.perm = NULL, use.cpp = F)
+FE_sig_lineage <- one_part_FE$sig.lineage
+FE_sig_lineage <- str_replace_all(FE_sig_lineage," ", "_")
+#FE_sig_lineage <- FE_sig_lineage[FE_sig_lineage != "2_Bacteria"]
 
 # the index of significant lineage in the tree
-VC_sig_lineage <- unlist(lapply(1:length(VC_sig_lineage),function(X){tip_num+which(tree.vis$node.label == VC_sig_lineage[X])}))
+FE_sig_lineage <- unlist(lapply(1:length(FE_sig_lineage),function(X){tip_num+which(tree.vis$node.label == FE_sig_lineage[X])}))
 
-print(one_part_VC$sig.lineage) 
+print(one_part_FE$sig.lineage) 
 ```
 
 #### Visualization
@@ -235,16 +235,16 @@ p + ggtitle("Significant lineages")
 #### Random-effect Meta-analysis Method
 ```{r}
 ## Permutation p-value
-Method = "Het-VC"
-one_part_Het <- QCAT_Meta(otu.tab.lst, X , 1, Tax = Tax, Method = Method, n.perm = 450, use.cpp = T)
-Het_sig_lineage <- one_part_Het$sig.lineage
-Het_sig_lineage <- str_replace_all(Het_sig_lineage," ", "_")
-#Het_sig_lineage <- Het_sig_lineage[Het_sig_lineage != "2_Bacteria"]
+Method = "RE-MV"
+one_part_RE <- QCAT_Meta(otu.tab.lst, X , 1, Tax = Tax, Method = Method, n.perm = 450, use.cpp = T)
+RE_sig_lineage <- one_part_RE$sig.lineage
+RE_sig_lineage <- str_replace_all(RE_sig_lineage," ", "_")
+#RE_sig_lineage <- RE_sig_lineage[RE_sig_lineage != "2_Bacteria"]
 
 # the index of significant lineage in the tree
-Het_sig_lineage <- unlist(lapply(1:length(Het_sig_lineage),function(X){tip_num+which(tree.vis$node.label == Het_sig_lineage[X])}))
+RE_sig_lineage <- unlist(lapply(1:length(RE_sig_lineage),function(X){tip_num+which(tree.vis$node.label == RE_sig_lineage[X])}))
 
-print(one_part_Het$sig.lineage) 
+print(one_part_RE$sig.lineage) 
 ```
 
 #### Visualization
@@ -310,7 +310,7 @@ otu.tab.lst <- lapply(otu.tab.lst,function(X){Rarefy(X)$otu.tab.rff})
 
 ```{r}
 ## Permutation p-value
-zero_part_RE <- QCAT_GEE_Meta(otu.tab.lst, X , 1, Tax = Tax, Method = "RE-VC", n.perm = 300, use.cpp = T)
+zero_part_RE <- QCAT_GEE_Meta(otu.tab.lst, X , 1, Tax = Tax, Method = "RE-MV", n.perm = 300, use.cpp = T)
 RE_sig_lineage <- zero_part_RE$sig.lineage
 RE_sig_lineage <- str_replace_all(RE_sig_lineage," ", "_")
 #RE_sig_lineage <- RE_sig_lineage[RE_sig_lineage != "2_Bacteria"]
@@ -359,8 +359,8 @@ p + ggtitle("Significant lineages")
 
 ```{r, warning = FALSE, eval = F}
 microbenchmark(
-   QCAT_Meta(otu.tab.lst, X , 1, Tax = NULL, Method = "Het-VC", n.perm = 100, use.cpp = T), # median 42.3772
-   QCAT_Meta(otu.tab.lst, X , 1, Tax = NULL, Method = "Het-VC", n.perm = 100, use.cpp = F), # median 60.6535
+   QCAT_Meta(otu.tab.lst, X , 1, Tax = NULL, Method = "RE-VC", n.perm = 100, use.cpp = T), # median 42.3772
+   QCAT_Meta(otu.tab.lst, X , 1, Tax = NULL, Method = "RE-VC", n.perm = 100, use.cpp = F), # median 60.6535
    times = 4
 )
 ```

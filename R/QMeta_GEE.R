@@ -1,4 +1,3 @@
-
 # Zero part model
 
 .F.test <- function(x){
@@ -141,6 +140,10 @@
   n = nrow(Y0)
   m = ncol(Y0)
   p = ncol(Z)
+
+  if(is.null(colnames(Y0))){
+    colnames(Y0) <- paste0(rep('V',m),c(1:m))
+  }
   p.reduce = ncol(Z.reduce)
   outcome = NULL
   id = NULL
@@ -246,7 +249,7 @@
     # the index of parameter of interest for each study (different across studies becasue of different column number)
     par.index.alpha =  kronecker( ((0:(m.alpha-1))*p), rep(1,length(Z.par.index))) + Z.par.index # the index of parameter of interest for each study
     # the number of parameter of interest for each study
-    n.par.alpha = length(par.index.alpha)
+    n.par.alpha.interest = length(par.index.alpha)
     n = nrow(Z.perm)
 
     # initialize for later use
@@ -271,22 +274,22 @@
     }
 
     # re-organized the score statistics and Hessian matrix according the index of parameter of interest
-    Score.reduce.reorg = cbind( matrix(Score.reduce.alpha.perm[,par.index.alpha], ncol=n.par.alpha), matrix(Score.reduce.alpha.perm[,-par.index.alpha], ncol=n.alpha - n.par.alpha) )
-    Hess.reduce.reorg = rbind(cbind( matrix(Hess.reduce.alpha.perm[par.index.alpha, par.index.alpha], nrow=n.par.alpha), matrix(Hess.reduce.alpha.perm[par.index.alpha, -par.index.alpha], nrow=n.par.alpha) ),
-                              cbind( matrix(Hess.reduce.alpha.perm[-par.index.alpha, par.index.alpha], nrow=n.alpha - n.par.alpha), matrix(Hess.reduce.alpha.perm[-par.index.alpha, -par.index.alpha], nrow= n.alpha - n.par.alpha)))
+    Score.reduce.reorg = cbind( matrix(Score.reduce.alpha.perm[,par.index.alpha], ncol=n.par.alpha.interest), matrix(Score.reduce.alpha.perm[,-par.index.alpha], ncol=n.alpha - n.par.alpha.interest) )
+    Hess.reduce.reorg = rbind(cbind( matrix(Hess.reduce.alpha.perm[par.index.alpha, par.index.alpha], nrow=n.par.alpha.interest), matrix(Hess.reduce.alpha.perm[par.index.alpha, -par.index.alpha], nrow=n.par.alpha.interest) ),
+                              cbind( matrix(Hess.reduce.alpha.perm[-par.index.alpha, par.index.alpha], nrow=n.alpha - n.par.alpha.interest), matrix(Hess.reduce.alpha.perm[-par.index.alpha, -par.index.alpha], nrow= n.alpha - n.par.alpha.interest)))
 
 
-    A = colSums(Score.reduce.reorg)[1:n.par.interest.alpha]
+    A = colSums(Score.reduce.reorg)[1:n.par.alpha.interest]
 
-    B1 <- ginv(Hess.reduce.reorg[(1:n.par.interest.alpha), (1:n.par.interest.alpha)] - crossprod(t(Hess.reduce.reorg[(1:n.par.interest.alpha), ((n.par.interest.alpha + 1):n.alpha)]),
-               crossprod(t(ginv(Hess.reduce.reorg[((n.par.interest.alpha + 1):n.alpha), ((n.par.interest.alpha + 1):n.alpha)])), Hess.reduce.reorg[((n.par.interest.alpha + 1):n.alpha), (1:n.par.interest.alpha)])))
+    B1 <- ginv(Hess.reduce.reorg[(1:n.par.alpha.interest), (1:n.par.alpha.interest)] - crossprod(t(Hess.reduce.reorg[(1:n.par.alpha.interest), ((n.par.alpha.interest + 1):n.alpha)]),
+               crossprod(t(ginv(Hess.reduce.reorg[((n.par.alpha.interest + 1):n.alpha), ((n.par.alpha.interest + 1):n.alpha)])), Hess.reduce.reorg[((n.par.alpha.interest + 1):n.alpha), (1:n.par.alpha.interest)])))
 
     alpha.hat <- crossprod(t(B1), A)
 
-    U <- Score.reduce.reorg[ ,1:n.par.interest.alpha] - crossprod(t(Score.reduce.reorg[ ,((n.par.interest.alpha + 1):n.alpha)]),tcrossprod(ginv(Hess.reduce.reorg[((n.par.interest.alpha + 1):n.alpha),
-                            ((n.par.interest.alpha + 1):n.alpha)]), Hess.reduce.reorg[(1:n.par.interest.alpha), ((n.par.interest.alpha + 1):n.alpha)] ))
+    U <- Score.reduce.reorg[ ,1:n.par.alpha.interest] - crossprod(t(Score.reduce.reorg[ ,((n.par.alpha.interest + 1):n.alpha)]),tcrossprod(ginv(Hess.reduce.reorg[((n.par.alpha.interest + 1):n.alpha),
+                            ((n.par.alpha.interest + 1):n.alpha)]), Hess.reduce.reorg[(1:n.par.alpha.interest), ((n.par.alpha.interest + 1):n.alpha)] ))
 
-    B2 <- matrix(0, n.par.interest.alpha, n.par.interest.alpha)
+    B2 <- matrix(0, n.par.alpha.interest, n.par.alpha.interest)
 
     for (i in 1:n) {
       B2 <- B2 + U[i, ] %o% U[i, ]
@@ -325,17 +328,17 @@
     U.theta = 0
     V.theta = 0
     U.tau = 0
-    est.inv.sum = 0
+    est.inv.sum = matrix(0, nrow = n.par.interest.alpha, ncol = n.par.interest.alpha)
     for( i in 1:stu.num){
+      idx = col.zero.index.list[[i]]
       est.inv = ginv(est.cov.zero[[i]])# calculate the generalized inverse for each estimate covariance for each study
       U.theta = U.theta +  1/2 * crossprod(crossprod(t(est.inv), score.alpha[[i]])) - 1/2 * tr(est.inv)
       # when \tau matrix and W matrix is identity the elements in upper left, bottom right as well as bottom left are the same in RE-VC test
       V.theta = V.theta + 1/2 * tr(crossprod(est.inv))
-      U.tau = U.tau - 1/2 * tr(est.inv)
-      est.inv.sum = est.inv.sum + est.inv
+      est.inv.sum[idx,idx] = est.inv.sum[idx,idx] + est.inv
     }
     V.tau = 1/2 * tr(crossprod(est.inv.sum))
-    U.tau = 1/2 * crossprod(score.alpha.meta) + U.tau
+    U.tau = 1/2 * crossprod(score.alpha.meta) - 1/2 * tr(est.inv.sum)
     score.stat.alpha.perm = crossprod(c(U.tau, U.theta), crossprod(ginv(matrix(c(V.tau,rep(V.theta,3)),ncol = 2)), c(U.tau, U.theta)))
   }
   return(as.numeric(score.stat.alpha.perm))
@@ -375,17 +378,17 @@
     U.theta = 0
     V.theta = 0
     U.tau = 0
-    est.inv.sum = 0
+    est.inv.sum = matrix(0, nrow = n.par.interest.alpha, ncol = n.par.interest.alpha)
     for( i in 1:stu.num){
+      idx = col.zero.index.list[[i]]
       est.inv = ginv(est.cov.zero[[i]])# calculate the generalized inverse for each estimate covariance for each study
       U.theta = U.theta +  1/2 * crossprod(crossprod(t(est.inv), score.alpha[[i]])) - 1/2 * tr(est.inv)
       # when \tau matrix and W matrix is identity the elements in upper left, bottom right as well as bottom left are the same in RE-VC test
       V.theta = V.theta + 1/2 * tr(crossprod(est.inv))
-      U.tau = U.tau - 1/2 * tr(est.inv)
-      est.inv.sum = est.inv.sum + est.inv
+      est.inv.sum[idx,idx] = est.inv.sum[idx,idx] + est.inv
     }
     V.tau = 1/2 * tr(crossprod(est.inv.sum))
-    U.tau = 1/2 * crossprod(score.alpha.meta) + U.tau
+    U.tau = 1/2 * crossprod(score.alpha.meta) - 1/2 * tr(est.inv.sum)
     score.stat.alpha.perm = crossprod(c(U.tau, U.theta), crossprod(ginv(matrix(c(V.tau,rep(V.theta,3)),ncol = 2)), c(U.tau, U.theta)))
   }
   return(as.numeric(score.stat.alpha.perm))
@@ -459,102 +462,117 @@
   stu.num = length(Z.list)
   p.par = length(Z.par.index)
   m = ncol(Y.list[[1]])
-  n = nrow(Y.list[[1]])
   p.zero = ncol(Z.list[[1]])
-  n.OTU = length(Y.list)
+  Y0.list = Y.list
   # the total number of parameter of interest
   n.par.interest.alpha = m*length(Z.par.index)
-  if(! Method %in% c("FE-MV","FE-VC",'RE-MV',"RE-VC")){
-    stop("Error: Please Choose a Proper Meta-analysis Method")
-  }
-  # check the parameters of interest to ensure the intercept term is not in it
-  if (length(unique(sapply(1:n.OTU,function(j) ncol(Y.list[[j]]))))!=1){
-    stop("Error: The taxon in each study should be the same")
-  }
-  if(m<=1){
-    stop("Error: Improper dimension for OTU table")
-  }
-  ava.cnt = 0
-  # col.pos.index.lst = lapply(1:n.OTU, function(j) )
-  ############################# Asymptotic: zero part
-  Y0.list = Y.list
-  for(j in 1:n.OTU)
+  remove.study = NULL
+  for(j in 1:stu.num)
   {
     # for each study set those value which are zero to 1
     Y0.list[[j]][Y.list[[j]]==0] = 1
     # for each study set those value which are non-zero to 0
     Y0.list[[j]][Y.list[[j]]>0] = 0
+    remove.rows.idx = which(rowSums(Y0.list[[j]]) == 0)
+    if(length(remove.rows.idx) == nrow(Y0.list[[j]])){
+      remove.study = append(remove.study, i)
+      next
+    }
+    # if(length(remove.rows.idx)>0){
+    #   Y.list[[i]] <- Y.list[[i]][-remove.rows.idx, ,drop=FALSE]
+    #   X.list[[i]] <- X.list[[i]][-remove.rows.idx, , drop=FALSE]
+    # }
   }
+  if(!is.null(remove.study)){
+    if(length(remove.study) == stu.num){
+      stop("Error: Not proper data")
+    }else{
+      Y0.list <- Y0.list[-remove.study]
+      Z.list <- Z.list[-remove.study]
+      stu.num = length(Z.list)
+    }
+  }
+  if(! Method %in% c("FE-MV","FE-VC",'RE-MV',"RE-VC")){
+    stop("Error: Please Choose a Proper Meta-analysis Method")
+  }
+  # check the parameters of interest to ensure the intercept term is not in it
+  if (length(unique(sapply(1:stu.num,function(j) ncol(Y.list[[j]]))))!=1){
+    stop("Error: The taxon in each study should be the same")
+  }
+  if(m<=1){
+    stop("Error: Improper dimension for OTU table")
+  }
+  if(is.null(Z.par.index)){
+    stop("Error: Testing parameters for the intercept is not informative. (Alpha part)")
+  }
+  ava.cnt = 0
+  # col.pos.index.lst = lapply(1:stu.num, function(j) )
+  ############################# Asymptotic: zero part
+
 
   # if all 0 in one group across across taxa, then output NA
   #if( (ncol(Y0)-length(remove.index))<=1 | sum(Y0[case==1,])==0 | sum(Y0[case==0,])==0){
-  if(is.null(Z.par.index) || n==0){
 
-    score.pvalue = NA
-    score.stat.meta = NA
-    df = NA
+  # initialize for later use
+  score.pvalue = NA
+  score.stat.meta = NA
+  df = NA
+  score.stat.alpha = NULL
+  remove.index = NULL
+  score.alpha = list()
+  est.cov.zero = list()
+  zero.vA.list.meta = list()
+  zero.Vinv.list.meta = list()
+  zero.VY.list.meta = list()
+  col.zero.index.list = list()
+  # initialize the score statistics and estimate covariance matrix for meta analysis
+  score.alpha.meta  = rep(0,n.par.interest.alpha) ## A
+  est.cov.meta = matrix(0, nrow = n.par.interest.alpha, ncol = n.par.interest.alpha) ## B
+  for(i in 1:stu.num){
+    Y0 = Y0.list[[i]]
+    Z = Z.list[[i]]
+    col.zero.index = which(apply(Y0, 2, function(x) length(table(x)) ) > 1) # keep those taxa which have both zero and one (both positive and zero observations)
+    Y0 = Y0[, col.zero.index , drop=FALSE] # only save those columns which have both 0 and 1 values
+    if(length(col.zero.index)<1)
+    {
+      remove.index = append(remove.index,i)
+      next
+    }else{
+      # nY0 = rowSums(Y0)
+      # ## remove 03/28/2016
+      # index.subj.zero = which(nY0>0)
+      # if(length(index.subj.zero)== 0){
+      #     next
+      #}
+      #
+      # Y0 = Y0[index.subj.zero, , drop=FALSE]
+      # Z = Z[index.subj.zero, , drop=FALSE]
+      #
+      tmp.zero = try( .Score.test.stat.zero(Y0, Z, Z.par.index, "independence") )
+    }
+    if("try-error" %in% class(tmp.zero)){
+      remove.index= append(remove.index,i)
+      next
 
-  }else{
-    # initialize for later use
-    score.pvalue = NA
-    score.stat.meta = NA
-    df = NA
-    score.stat.alpha = NULL
-    remove.index = NULL
-    score.alpha = list()
-    est.cov.zero = list()
-    zero.vA.list.meta = list()
-    zero.Vinv.list.meta = list()
-    zero.VY.list.meta = list()
-    col.zero.index.list = list()
-    # initialize the score statistics and estimate covariance matrix for meta analysis
-    score.alpha.meta  = rep(0,n.par.interest.alpha) ## A
-    est.cov.meta = matrix(0, nrow = n.par.interest.alpha, ncol = n.par.interest.alpha) ## B
-    for(i in 1:stu.num){
-      Y0 = Y0.list[[i]]
-      Z = Z.list[[i]]
-      col.zero.index = which(apply(Y0, 2, function(x) length(table(x)) ) > 1) # keep those taxa which have both zero and one (both positive and zero observations)
-      Y0 = Y0[, col.zero.index , drop=FALSE] # only save those columns which have both 0 and 1 values
-      if(length(col.zero.index)<1)
-      {
-        remove.index = append(remove.index,i)
-        next
-      }else{
-        # nY0 = rowSums(Y0)
-        # ## remove 03/28/2016
-        # index.subj.zero = which(nY0>0)
-        # if(length(index.subj.zero)== 0){
-        #     next
-        #}
-        #
-        # Y0 = Y0[index.subj.zero, , drop=FALSE]
-        # Z = Z[index.subj.zero, , drop=FALSE]
-        #
-        tmp.zero = try( .Score.test.stat.zero(Y0, Z, Z.par.index, "independence") )
-      }
-      if("try-error" %in% class(tmp.zero)){
-        remove.index= append(remove.index,i)
-        next
-
-      }else{
-        # number of study which can get score statistics
-        ava.cnt = ava.cnt + 1
-        # get the index for parameter of interest after score statistics and estimate covariance matrix are reorginzed
-        # different across studies because of different column numbers
-        idx = kronecker((col.zero.index-1)*p.par, rep(1,p.par)) + c(1:p.par)
-        col.zero.index.list[[ava.cnt]] = idx  # the index of alpha parameter of interest in this study
-        # save these outcome in list form for later meta-analysis as well as resampling test
-        score.stat.alpha = append(score.stat.alpha, tmp.zero$score.stat.alpha)
-        score.alpha[[ava.cnt]] = tmp.zero$score.alpha
-        est.cov.zero[[ava.cnt]] = tmp.zero$est.cov.zero
-        zero.vA.list.meta[[ava.cnt]] = tmp.zero$vA.list
-        zero.Vinv.list.meta[[ava.cnt]] = tmp.zero$Vinv.list
-        zero.VY.list.meta[[ava.cnt]] = tmp.zero$VY.list
-        score.alpha.meta[idx] =  score.alpha.meta[idx] + crossprod(ginv(tmp.zero$est.cov.zero), tmp.zero$score.alpha) # add according to the index of parameter of interest for each study
-        est.cov.meta[idx, idx] =  est.cov.meta[idx, idx] + ginv(tmp.zero$est.cov.zero)
-      }
+    }else{
+      # number of study which can get score statistics
+      ava.cnt = ava.cnt + 1
+      # get the index for parameter of interest after score statistics and estimate covariance matrix are reorginzed
+      # different across studies because of different column numbers
+      idx = kronecker((col.zero.index-1)*p.par, rep(1,p.par)) + c(1:p.par)
+      col.zero.index.list[[ava.cnt]] = idx  # the index of alpha parameter of interest in this study
+      # save these outcome in list form for later meta-analysis as well as resampling test
+      score.stat.alpha = append(score.stat.alpha, tmp.zero$score.stat.alpha)
+      score.alpha[[ava.cnt]] = tmp.zero$score.alpha
+      est.cov.zero[[ava.cnt]] = tmp.zero$est.cov.zero
+      zero.vA.list.meta[[ava.cnt]] = tmp.zero$vA.list
+      zero.Vinv.list.meta[[ava.cnt]] = tmp.zero$Vinv.list
+      zero.VY.list.meta[[ava.cnt]] = tmp.zero$VY.list
+      score.alpha.meta[idx] =  score.alpha.meta[idx] + crossprod(ginv(tmp.zero$est.cov.zero), tmp.zero$score.alpha) # add according to the index of parameter of interest for each study
+      est.cov.meta[idx, idx] =  est.cov.meta[idx, idx] + ginv(tmp.zero$est.cov.zero)
     }
   }
+
   ############################# Asymptotic: combined
   if(ava.cnt>0){
     if(length(remove.index) != 0){
@@ -582,7 +600,7 @@
     if(Method == "RE-MV"){
       U.theta = 0
       V.theta = 0
-      for( i in 1:ava.cnt ){
+      for( i in 1:ava.cnt){
         est.inv = ginv(est.cov.zero[[i]])
         U.theta = U.theta + 1/2 * crossprod(crossprod(t(est.inv), score.alpha[[i]])) - 1/2 * tr(est.inv)
         V.theta = V.theta + 1/2 * tr(crossprod(est.inv))
@@ -593,17 +611,17 @@
       U.theta = 0
       V.theta = 0
       U.tau = 0
-      est.inv.sum = 0
-      for( i in 1:ava.cnt ){
+      est.inv.sum = matrix(0, nrow = n.par.interest.alpha, ncol = n.par.interest.alpha)
+      for( i in 1:ava.cnt){
+        idx = col.zero.index.list[[i]]
         est.inv = ginv(est.cov.zero[[i]])# calculate the generalized inverse for each estimate covariance for each study
         U.theta = U.theta +  1/2 * crossprod(crossprod(t(est.inv), score.alpha[[i]])) - 1/2 * tr(est.inv)
         # when \tau matrix and W matrix is identity the elements in upper left, bottom right as well as bottom left are the same in RE-VC test
         V.theta = V.theta + 1/2 * tr(crossprod(est.inv))
-        U.tau = U.tau - 1/2 * tr(est.inv)
-        est.inv.sum = est.inv.sum + est.inv
+        est.inv.sum[idx,idx] = est.inv.sum[idx,idx] + est.inv
       }
       V.tau = 1/2 * tr(crossprod(est.inv.sum))
-      U.tau = 1/2 * crossprod(score.alpha.meta) + U.tau
+      U.tau = 1/2 * crossprod(score.alpha.meta) - 1/2 * tr(est.inv.sum)
       score.stat.meta = crossprod(c(U.tau, U.theta), crossprod(ginv(matrix(c(V.tau,rep(V.theta,3)),ncol = 2)), c(U.tau, U.theta)))
     }
     zero.results = list(score.stat = score.stat.meta, score.pvalue = score.pvalue, df = df)
@@ -816,17 +834,32 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth
   if(is.null(Tax)){ # perform one test using all OTUs
     # count = lapply(count,function(X){.Rarefy(X)$otu.tab.rff})
     if(is.null(n.resample)){ # asymptotic test only
-      tmp = .Score.test.zero.meta(count, Z, Z.index, seed=11, resample=FALSE, n.replicates=NULL, Method = Method)
-      pval.zero = as.matrix( tmp$score.pvalue )
-      colnames(pval.zero) = paste0("Asymptotic-",Method)
-    }else{
-      tmp = .Score.test.zero.meta(count, Z, Z.index, seed=11, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = Method)
-      if(Method %in% c("RE-VC", "RE-MV")){
-        pval.zero = c(tmp$score.Rpvalue)
-        names(pval.zero) = paste0("Resampling-",Method)
+      tmp = try(.Score.test.zero.meta(count, Z, Z.index, seed=11, resample=FALSE, n.replicates=NULL, Method = Method))
+      if(!("try-error" %in% class(tmp))){
+        pval.zero = c( tmp$score.pvalue )
+        names(pval.zero) = paste0("Asymptotic-",Method)
       }else{
-        pval.zero = c(tmp$score.pvalue, tmp$score.Rpvalue)
-        names(pval.zero) = c(paste0("Asymptotic-",Method),paste0("Resampling-",Method))
+        pval.zero = NA
+        names(pval.zero) = paste0("Asymptotic-",Method)
+      }
+    }else{
+      tmp = try(.Score.test.zero.meta(count, Z, Z.index, seed=11, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = Method))
+      if(!("try-error" %in% class(tmp))){
+        if(Method %in% c("RE-VC", "RE-MV")){
+          pval.zero = c(tmp$score.Rpvalue)
+          names(pval.zero) = paste0("Resampling-",Method)
+        }else{
+          pval.zero = c(tmp$score.pvalue, tmp$score.Rpvalue)
+          names(pval.zero) = c(paste0("Asymptotic-",Method),paste0("Resampling-",Method))
+        }
+      }else{
+        if(Method %in% c("RE-VC", "RE-MV")){
+          pval.zero = NA
+          names(pval.zero) = paste0("Resampling-",Method)
+        }else{
+          pval.zero = c(NA, NA)
+          names(pval.zero) = c(paste0("Asymptotic-",Method),paste0("Resampling-",Method))
+        }
       }
     }
     return(list(pval = pval.zero))
@@ -916,18 +949,29 @@ QCAT_GEE_Meta <- function(OTU, Z, Z.index, Tax=NULL, Method = "FE-MV", min.depth
           subtree = c(subtree, level.uni[j])
           if(is.null(n.resample)){
             #  run test for each lineage
-            tmp = .Score.test.zero.meta(Y, Z, Z.index, seed=11, resample=FALSE, n.replicates=n.resample, Method = Method)
-            pval.zero = cbind(pval.zero, tmp$score.pvalue)
+            tmp = try(.Score.test.zero.meta(Y, Z, Z.index, seed=11, resample=FALSE, n.replicates=n.resample, Method = Method))
+            if(!("try-error" %in% class(tmp))){
+              pval.zero = cbind(pval.zero, tmp$score.pvalue)
+            }else{
+              pval.zero = cbind(pval.zero, NA)
+            }
           }
           else{
             # if n.resample in not null, select the significant lineage according to the resampling pvalue
             #  run test for each lineage
-            if(Method %in% c("RE-VC", "RE-MV")){
-              tmp = .Score.test.zero.meta(Y, Z, Z.index, seed=11, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = Method)
-              pval.zero = cbind(pval.zero, tmp$score.Rpvalue)
+            tmp = try(.Score.test.zero.meta(Y, Z, Z.index, seed=11, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = Method))
+            if(!("try-error" %in% class(tmp))){
+              if(Method %in% c("RE-VC", "RE-MV")){
+                pval.zero = cbind(pval.zero, tmp$score.Rpvalue)
+              }else{
+                pval.zero = cbind(pval.zero, c(tmp$score.pvalue, tmp$score.Rpvalue) )
+              }
             }else{
-              tmp = .Score.test.zero.meta(Y, Z, Z.index, seed=11, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = Method)
-              pval.zero = cbind(pval.zero, c(tmp$score.pvalue, tmp$score.Rpvalue) )
+              if(Method %in% c("RE-VC", "RE-MV")){
+                pval.zero = cbind(pval.zero, NA)
+              }else{
+                pval.zero = cbind(pval.zero, c(NA, NA) )
+              }
             }
           }
 
