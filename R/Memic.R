@@ -17,7 +17,7 @@
 
 ########################################
 #                                      #
-#           One Part Model             #
+#           Positive Part Model             #
 #                                      #
 ########################################
 
@@ -1258,8 +1258,8 @@
       df = n.par.save.alpha
     }
     if(Method == "FE-VC*"){
-      weight.cov.meta = eigen(est.cov.meta)$values #eign.val/sum(eign.val)
-      score.stat.meta = crossprod(score.alpha.meta) #SKAT-VC
+      weight.cov.meta = eigen(est.cov.meta)$values
+      score.stat.meta = crossprod(score.alpha.meta)
       score.pvalue = davies(score.stat.meta, weight.cov.meta, h = rep(1,n.par.save.alpha), delta = rep(0,n.par.save.alpha), sigma = 0, lim = 10000, acc = 0.0001)$Qq
       score.pvalue = ifelse(score.pvalue>0,score.pvalue,0)
       df = n.par.save.alpha
@@ -1348,6 +1348,90 @@
   return(zero.results)
 }
 
+## Cauchy Combine
+ACAT<-function(Pvals,Weights=NULL){
+  #### check if there is NA
+  if (sum(is.na(Pvals))>0){
+    stop("Cannot have NAs in the p-values!")
+  }
+  #### check if Pvals are between 0 and 1
+  if ((sum(Pvals<0)+sum(Pvals>1))>0){
+    stop("P-values must be between 0 and 1!")
+  }
+  #### check if there are pvals that are either exactly 0 or 1.
+  is.zero<-(sum(Pvals==0)>=1)
+  is.one<-(sum(Pvals==1)>=1)
+  if (is.zero && is.one){
+    stop("Cannot have both 0 and 1 p-values!")
+  }
+  if (is.zero){
+    return(0)
+  }
+  if (is.one){
+    warning("There are p-values that are exactly 1!")
+    return(1)
+  }
+
+  #### Default: equal weights. If not, check the validity of the user supplied weights and standadize them.
+  if (is.null(Weights)){
+    Weights<-rep(1/length(Pvals),length(Pvals))
+  }else if (length(Weights)!=length(Pvals)){
+    stop("The length of weights should be the same as that of the p-values")
+  }else if (sum(Weights<0)>0){
+    stop("All the weights must be positive!")
+  }else{
+    Weights<-Weights/sum(Weights)
+  }
+
+
+  #### check if there are very small non-zero p values
+  is.small<-(Pvals<1e-16)
+  if (sum(is.small)==0){
+    cct.stat<-sum(Weights*tan((0.5-Pvals)*pi))
+  }else{
+    cct.stat<-sum((Weights[is.small]/Pvals[is.small])/pi)
+    cct.stat<-cct.stat+sum(Weights[!is.small]*tan((0.5-Pvals[!is.small])*pi))
+  }
+  #### check if the test statistic is very large.
+  if (cct.stat>1e+15){
+    pval<-(1/cct.stat)/pi
+  }else{
+    pval<-1-pcauchy(cct.stat)
+  }
+  return(pval)
+}
+
+
+Rarefy <- function (otu.tab, depth = min(rowSums(otu.tab))){
+  # Rarefaction function: downsample to equal depth
+  #
+  # Args:
+  #		otu.tab: OTU count table, row - n sample, column - q OTU
+  #		depth: required sequencing depth
+  #
+  # Returns:
+  # 	otu.tab.rff: Rarefied OTU table
+  #		discard: labels of discarded samples
+  #
+  otu.tab <- as.matrix(otu.tab)
+  ind <- (rowSums(otu.tab) < depth)
+  sam.discard <- rownames(otu.tab)[ind]
+  otu.tab <- otu.tab[!ind, ]
+
+  rarefy <- function(x, depth){
+    y <- sample(rep(1:length(x), x), depth)
+    y.tab <- table(y)
+    z <- numeric(length(x))
+    z[as.numeric(names(y.tab))] <- y.tab
+    z
+  }
+  otu.tab.rff <- t(apply(otu.tab, 1, rarefy, depth))
+  rownames(otu.tab.rff) <- rownames(otu.tab)
+  colnames(otu.tab.rff) <- colnames(otu.tab)
+  return(list(otu.tab.rff=otu.tab.rff, discard=sam.discard))
+}
+
+
 #' Title
 #'
 #' @param OTU a list of matrices containing OTU counts with each row corresponding to a sample and each column corresponding to an OTU or taxa. Each matrix's taxas are better to the same. The column name is mandatory.
@@ -1356,11 +1440,12 @@
 #' @param Tax a matrix defines the taxonomy ranks with each row corresponding to an OTU or a taxa and each column corresponding to a rank (starting from the higher taxonomic level). Row name is mandatory and should be consistent with the column name of the OTU table, Column name should be formatted as "Rank1", "Rank2 ()"... etc
 #'        If provided, tests will be performed for lineages based on the taxonomic rank. The output contains P-values for all lineages; a list of significant lineages controlling the false discovery rate (based on resampling p-value if resampling test was performed).
 #'        If not provided, one test will be performed with all the OTUs and one p-value will be output.
-#' @param Method Meta-analysis method to be used. Including fixed effect methods such as the FE-MV, FE-VC, FE-MV\* and FE-VC\* test and random effect methods like RE-MV, RE-VC, RE-MV\* and RE-VC\* test.
+#' @param Method Meta-analysis method to be used. Including fixed effect methods such as the FE-MV, FE-VC, FE-MV\*, FE-VC\* test and the Cauchy-combined p-value of all the fix effect tests denoted as FE-O test and random effect methods like RE-MV, RE-VC, RE-MV\*, RE-VC\* test and the Cauchy-combined p-value of all the random effect tests denoted as RE-O test.
 #' @param min.depth keep samples with depths >= min.depth.
 #' @param n.perm perform asymptotic test if n.perm is null, otherwise perform permutation tests using the specified number of resamplings.
 #' @param fdr.alpha false discovery rate for multiple tests on the lineages.
 #' @param use.cpp Logical value (default F). Whether to use Rcpp or not for resampling test.
+#' @param rarefy Logical value (default F). Whether to perform Rarefy for the zero part test and the zero part p value of
 #'
 #' @return A list with this elements
 #'    \item{lineage.pval}{p-values for all lineages. By default ( Method = "FE-MV", n.perm = NULL ), only the asymptotic test will be performed. If using random effect meta-analysis methods ( Method = "RE-VC" or Method = "RE-MV" ), then resampling test must be performed.}
@@ -1392,12 +1477,12 @@
 #' @references
 #' Benjamini, Yoav, and Yosef Hochberg.(1995) Controlling the False Discovery Rate: A Practical and Powerful Approach to Multiple Testing.
 #' \emph{Journal of the Royal Statistical Society. Series B}
-Memic <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.perm=NULL, use.cpp = F, fdr.alpha=0.05){
+Memic <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.perm=NULL, use.cpp = F, fdr.alpha=0.05, rarefy = F){
   n.resample = n.perm
   n.OTU = length(OTU)
   n.X = length(X)
   # drop.col = NULL
-  if(Method %in% c("RE-VC", "RE-MV")){
+  if(Method %in% c("RE-VC", "RE-MV", "RE-VC*", "RE-MV*", "RE-O")){
     if(is.null(n.perm)){
       stop("The p-value for random effect meta-analysis method must be got by resampling test")
     }
@@ -1469,12 +1554,15 @@ Memic <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.pe
   for (i in 1:n.OTU) {
     count[[i]] <- OTU.comb[batch.cnt[i]:(batch.cnt[i+1]-1),]
   }
+  if(rarefy){
+    count.rare = lapply(count,function(X){Rarefy(X)$otu.tab.rff})
+  }
   X = lapply(1:n.OTU,function(j) cbind(1, X[[j]])) # add the intercept term
   X.index = X.index + 1
 
   if(is.null(Tax)){ # perform one test using all OTUs
     if(is.null(n.perm)){
-      if(Method %in% c('FE-MV', 'FE-VC', 'RE-MV', 'RE-VC')){
+      if(Method %in% c('FE-MV', 'FE-VC')){
         tmp = try(.Score.test.meta(count, X, X.index, Method = Method))
         if(!("try-error" %in% class(tmp))){
           pval = c(tmp$score.pvalue)
@@ -1483,8 +1571,12 @@ Memic <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.pe
           pval = NA
           names(pval) = paste0("Asymptotic-",Method)
         }
-      }else if(Method %in% c('FE-MV*', 'FE-VC*', 'RE-MV*', 'RE-VC*')){
-        tmp = try(.Score.test.zero.meta(count, X, X.index, Method = Method))
+      }else if(Method %in% c('FE-MV*', 'FE-VC*')){
+        if(rarefy){
+          tmp = try(.Score.test.zero.meta(count.rare, X, X.index, Method = Method))
+        }else{
+          tmp = try(.Score.test.zero.meta(count, X, X.index, Method = Method))
+        }
         if(!("try-error" %in% class(tmp))){
           pval = c( tmp$score.pvalue )
           names(pval) = paste0("Asymptotic-",Method)
@@ -1492,8 +1584,37 @@ Memic <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.pe
           pval = NA
           names(pval) = paste0("Asymptotic-",Method)
         }
+      }else if(Method == 'FE-O'){
+        Pval_c = c()
+        for(i in c('FE-MV', 'FE-VC','FE-MV*', 'FE-VC*')){
+          if(i %in% c('FE-MV', 'FE-VC')){
+            tmp = try(.Score.test.meta(count, X, X.index, Method = i))
+            if(!("try-error" %in% class(tmp))){
+              Pval_c = append(Pval_c, tmp$score.pvalue)
+            }
+          }else{
+            if(rarefy){
+              tmp = try(.Score.test.zero.meta(count.rare, X, X.index, Method = i))
+              if(!("try-error" %in% class(tmp))){
+                Pval_c = append(Pval_c, tmp$score.pvalue)
+              }
+            }else{
+              tmp = try(.Score.test.zero.meta(count, X, X.index, Method = i))
+              if(!("try-error" %in% class(tmp))){
+                Pval_c = append(Pval_c, tmp$score.pvalue)
+              }
+            }
+          }
+        }
+        Pval_c = na.omit(Pval_c)
+        if(length(Pval_c) == 0){
+          pval = NA
+          names(pval) = paste0("Asymptotic-",Method)
+        }else{
+          pval = ACAT(Pval_c)
+          names(pval) = paste0("Asymptotic-",Method)
+        }
       }
-
     }else{ # resampling test + asymptotic test
       # (Y.list, X.list, X.par.index, seed=11, resample=FALSE, n.replicates=NULL, Method = "FE-MV", Weight=NULL )
       if(Method %in% c('FE-MV', 'FE-VC', 'RE-MV', 'RE-VC')){
@@ -1516,7 +1637,11 @@ Memic <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.pe
           }
         }
       }else if(Method %in% c('FE-MV*', 'FE-VC*', 'RE-MV*', 'RE-VC*')){
-        tmp = try(.Score.test.zero.meta(count, Z, Z.index, seed=11, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = Method))
+        if(rarefy){
+          tmp = try(.Score.test.zero.meta(count.rare, X, X.index, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = Method))
+        }else{
+          tmp = try(.Score.test.zero.meta(count, X, X.index, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = Method))
+        }
         if(!("try-error" %in% class(tmp))){
           if(Method %in% c("RE-VC*", "RE-MV*")){
             pval = c(tmp$score.Rpvalue)
@@ -1533,6 +1658,71 @@ Memic <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.pe
             pval = c(NA, NA)
             names(pval) = c(paste0("Asymptotic-",Method),paste0("Resampling-",Method))
           }
+        }
+      }else if(Method == 'FE-O'){
+        Pval_asy_c = c()
+        Pval_res_c = c()
+        for(i in c('FE-MV', 'FE-VC','FE-MV*', 'FE-VC*')){
+          if(i %in% c('FE-MV', 'FE-VC')){
+            tmp = try(.Score.test.meta(count, X, X.index, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = i))
+            if(!("try-error" %in% class(tmp))){
+              Pval_asy_c = append(Pval_asy_c, tmp$score.pvalue)
+              Pval_res_c = append(Pval_res_c, tmp$score.Rpvalue)
+            }
+          }else{
+            if(rarefy){
+              tmp = try(.Score.test.zero.meta(count.rare, X, X.index, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = i))
+              if(!("try-error" %in% class(tmp))){
+                Pval_asy_c = append(Pval_asy_c, tmp$score.pvalue)
+                Pval_res_c = append(Pval_res_c, tmp$score.Rpvalue)
+              }
+            }else{
+              tmp = try(.Score.test.zero.meta(count, X, X.index, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = i))
+              if(!("try-error" %in% class(tmp))){
+                Pval_asy_c = append(Pval_asy_c, tmp$score.pvalue)
+                Pval_res_c = append(Pval_res_c, tmp$score.Rpvalue)
+              }
+            }
+          }
+        }
+        Pval_asy_c = na.omit(Pval_asy_c)
+        Pval_res_c = na.omit(Pval_res_c)
+        if((length(Pval_asy_c) == 0)|(length(Pval_res_c) == 0)){
+          pval = c(NA, NA)
+          names(pval) = c(paste0("Asymptotic-",Method),paste0("Resampling-",Method))
+        }else{
+          pval = c(ACAT(Pval_asy_c),ACAT(Pval_res_c))
+          names(pval) = c(paste0("Asymptotic-",Method),paste0("Resampling-",Method))
+        }
+      }else if(Method == 'RE-O'){
+        Pval_res_c = c()
+        for(i in c('RE-MV', 'RE-VC','RE-MV*', 'RE-VC*')){
+          if(i %in% c('RE-MV', 'RE-VC')){
+            tmp = try(.Score.test.meta(count, X, X.index, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = i))
+            if(!("try-error" %in% class(tmp))){
+              Pval_res_c = append(Pval_res_c, tmp$score.Rpvalue)
+            }
+          }else{
+            if(rarefy){
+              tmp = try(.Score.test.zero.meta(count.rare, X, X.index, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = i))
+              if(!("try-error" %in% class(tmp))){
+                Pval_res_c = append(Pval_res_c, tmp$score.Rpvalue)
+              }
+            }else{
+              tmp = try(.Score.test.zero.meta(count, X, X.index, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = i))
+              if(!("try-error" %in% class(tmp))){
+                Pval_res_c = append(Pval_res_c, tmp$score.Rpvalue)
+              }
+            }
+          }
+        }
+        Pval_res_c = na.omit(Pval_res_c)
+        if(length(Pval_res_c) == 0){
+          pval = c(NA)
+          names(pval) = c(paste0("Resampling-",Method))
+        }else{
+          pval = ACAT(Pval_res_c)
+          names(pval) = c(paste0("Resampling-",Method))
         }
       }
     }
@@ -1559,6 +1749,9 @@ Memic <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.pe
     # merge the tax and count together for later partition and merge OTU table according to taxonomy information
     W.data.list = lapply(1:n.OTU,function(j) data.table(data.frame(tax, t(count[[j]]))))
     otucols = lapply(1:n.OTU,function(j) names(W.data.list[[j]])[-(1:n.rank)])
+    if(rarefy){
+      W.data.rare.list = lapply(1:n.OTU,function(j) data.table(data.frame(tax, t(count.rare[[j]]))))
+    }
     n.level = n.rank-1
 
     subtree = NULL
@@ -1577,12 +1770,20 @@ Memic <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.pe
       tt = lapply(1:n.OTU,function(j) setnames(tt[[j]], 1:2, c(Rank.low, Rank.high)))
       W.tax = as.vector(unlist(tt[[1]][, Rank.low, with=FALSE]))
       W.count = lapply(1:n.OTU,function(j) tt[[j]][, otucols[[j]], with=FALSE])
-
+      if(rarefy){
+        # partition and merge OTU table according to taxonomy information
+        tt.rare = lapply(1:n.OTU, function(j) W.data.rare.list[[j]][, lapply(.SD , sum, na.rm=TRUE), .SDcols=as.vector(unlist(otucols[j])), by=list( get(Rank.low), get(Rank.high) )])
+        tt.rare = lapply(1:n.OTU,function(j) setnames(tt[[j]], 1:2, c(Rank.low, Rank.high)))
+        W.rare.tax = as.vector(unlist(tt.rare[[1]][, Rank.low, with=FALSE]))
+        W.rare.count = lapply(1:n.OTU,function(j) tt.rare[[j]][, otucols[[j]], with=FALSE])
+      }
 
       for(j in 1:m.level){
 
         Y = lapply(1:n.OTU, function(i) t(W.count[[i]][which(W.tax == level.uni[j]), , drop=FALSE]))
-
+        if(rarefy){
+          Y.rare = lapply(1:n.OTU, function(i) t(W.rare.count[[i]][which(W.rare.tax == level.uni[j]), , drop=FALSE]))
+        }
         #Y = t(W.count[which(W.tax == "f__Veillonellaceae"), , drop=FALSE])
 
         # remove.index = NULL
@@ -1616,19 +1817,51 @@ Memic <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.pe
           if(is.null(n.resample)){ # asymptotic test only
             # (Y.list, X.list, X.par.index, seed=11, resample=FALSE, n.replicates=NULL, Method = "FE-MV", Weight=NULL )
             #  run test for each lineage
-            if(Method %in% c('FE-MV', 'FE-VC', 'RE-MV', 'RE-VC')){
+            if(Method %in% c('FE-MV', 'FE-VC')){
               tmp = try(.Score.test.meta(Y, X, X.index, Method = Method))
               if(!("try-error" %in% class(tmp))){
                 pval = cbind(pval, c(tmp$score.pvalue))
               }else{
                 pval = cbind(pval, NA)
               }
-            }else if(Method %in% c('FE-MV*', 'FE-VC*', 'RE-MV*', 'RE-VC*')){
-              tmp = try(.Score.test.zero.meta(Y, Z, Z.index, seed=11, resample=FALSE, n.replicates=n.resample, Method = Method))
+            }else if(Method %in% c('FE-MV*', 'FE-VC*')){
+              if(rarefy){
+                tmp = try(.Score.test.zero.meta(Y.rare, X, X.index, Method = Method))
+              }else{
+                tmp = try(.Score.test.zero.meta(Y, X, X.index, Method = Method))
+              }
               if(!("try-error" %in% class(tmp))){
                 pval = cbind(pval, tmp$score.pvalue)
               }else{
                 pval = cbind(pval, NA)
+              }
+            }else if(Method == 'FE-O'){
+              Pval_c = c()
+              for(i in c('FE-MV', 'FE-VC','FE-MV*', 'FE-VC*')){
+                if(i %in% c('FE-MV', 'FE-VC')){
+                  tmp = try(.Score.test.meta(Y, X, X.index, Method = i))
+                  if(!("try-error" %in% class(tmp))){
+                    Pval_c = append(Pval_c, tmp$score.pvalue)
+                  }
+                }else{
+                  if(rarefy){
+                    tmp = try(.Score.test.zero.meta(Y.rare, X, X.index, Method = i))
+                    if(!("try-error" %in% class(tmp))){
+                      Pval_c = append(Pval_c, tmp$score.pvalue)
+                    }
+                  }else{
+                    tmp = try(.Score.test.zero.meta(Y, X, X.index, Method = i))
+                    if(!("try-error" %in% class(tmp))){
+                      Pval_c = append(Pval_c, tmp$score.pvalue)
+                    }
+                  }
+                }
+              }
+              Pval_c = na.omit(Pval_c)
+              if(length(Pval_c) == 0){
+                pval = cbind(pval, NA)
+              }else{
+                pval = cbind(pval, ACAT(Pval_c))
               }
             }
           }
@@ -1651,7 +1884,11 @@ Memic <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.pe
                 }
               }
             }else if(Method %in% c('FE-MV*', 'FE-VC*', 'RE-MV*', 'RE-VC*')){
-              tmp = try(.Score.test.zero.meta(Y, Z, Z.index, seed=11, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = Method))
+              if(rarefy){
+                tmp = try(.Score.test.zero.meta(Y.rare, X, X.index, seed=11, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = Method))
+              }else{
+                tmp = try(.Score.test.zero.meta(Y, X, X.index, seed=11, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = Method))
+              }
               if(!("try-error" %in% class(tmp))){
                 if(Method %in% c("RE-VC*", "RE-MV*")){
                   pval = cbind(pval, tmp$score.Rpvalue)
@@ -1664,6 +1901,67 @@ Memic <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.pe
                 }else{
                   pval = cbind(pval, c(NA, NA) )
                 }
+              }
+            }else if(Method == 'FE-O'){
+              Pval_asy_c = c()
+              Pval_res_c = c()
+              for(i in c('FE-MV', 'FE-VC','FE-MV*', 'FE-VC*')){
+                if(i %in% c('FE-MV', 'FE-VC')){
+                  tmp = try(.Score.test.meta(Y, X, X.index, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = i))
+                  if(!("try-error" %in% class(tmp))){
+                    Pval_asy_c = append(Pval_asy_c, tmp$score.pvalue)
+                    Pval_res_c = append(Pval_res_c, tmp$score.Rpvalue)
+                  }
+                }else{
+                  if(rarefy){
+                    tmp = try(.Score.test.zero.meta(Y.rare, X, X.index, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = i))
+                    if(!("try-error" %in% class(tmp))){
+                      Pval_asy_c = append(Pval_asy_c, tmp$score.pvalue)
+                      Pval_res_c = append(Pval_res_c, tmp$score.Rpvalue)
+                    }
+                  }else{
+                    tmp = try(.Score.test.zero.meta(Y, X, X.index, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = i))
+                    if(!("try-error" %in% class(tmp))){
+                      Pval_asy_c = append(Pval_asy_c, tmp$score.pvalue)
+                      Pval_res_c = append(Pval_res_c, tmp$score.Rpvalue)
+                    }
+                  }
+                }
+              }
+              Pval_asy_c = na.omit(Pval_asy_c)
+              Pval_res_c = na.omit(Pval_res_c)
+              if((length(Pval_asy_c) == 0)|(length(Pval_res_c) == 0)){
+                pval = cbind(pval, c(NA, NA))
+              }else{
+                pval = cbind(pval, c(ACAT(Pval_asy_c),ACAT(Pval_res_c)))
+              }
+            }else if(Method == 'RE-O'){
+              Pval_res_c = c()
+              for(i in c('RE-MV', 'RE-VC','RE-MV*', 'RE-VC*')){
+                if(i %in% c('RE-MV', 'RE-VC')){
+                  tmp = try(.Score.test.meta(Y, X, X.index, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = i))
+                  if(!("try-error" %in% class(tmp))){
+                    Pval_res_c = append(Pval_res_c, tmp$score.Rpvalue)
+                  }
+                }else{
+                  if(rarefy){
+                    tmp = try(.Score.test.zero.meta(Y.rare, X, X.index, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = i))
+                    if(!("try-error" %in% class(tmp))){
+                      Pval_res_c = append(Pval_res_c, tmp$score.Rpvalue)
+                    }
+                  }else{
+                    tmp = try(.Score.test.zero.meta(Y, X, X.index, resample=TRUE, n.replicates=n.resample, use.cpp = use.cpp, Method = i))
+                    if(!("try-error" %in% class(tmp))){
+                      Pval_res_c = append(Pval_res_c, tmp$score.Rpvalue)
+                    }
+                  }
+                }
+              }
+              Pval_res_c = na.omit(Pval_res_c)
+              if(length(Pval_res_c) == 0){
+                pval = cbind(pval, NA)
+              }else{
+                pval = cbind(pval, ACAT(Pval_res_c))
               }
             }
           }
@@ -1718,7 +2016,6 @@ Memic <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.pe
     # return all the p-values as well as significant lineages
     return( list(lineage.pval=pval, sig.lineage=sig.lineage) )
   }
-
 
 }
 
