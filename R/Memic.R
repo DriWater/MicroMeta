@@ -1457,7 +1457,7 @@ Rarefy <- function (otu.tab, depth = min(rowSums(otu.tab))){
 #' OTU = data.meta$OTU
 #' Tax = data.meta$Tax
 #' case = data.meta$covariate
-#' Memic(OTU, case, 1, Tax, Method = "FE-MV", min.depth=0, n.perm=NULL, fdr.alpha=0.05)
+#' memic(OTU, case, 1, Tax, Method = "FE-MV", min.depth=0, n.perm=NULL, fdr.alpha=0.05)
 #' @import MASS
 #' @import data.table
 #' @import CompQuadForm
