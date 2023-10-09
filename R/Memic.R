@@ -1,15 +1,3 @@
-library(MASS)
-library(data.table)
-library(CompQuadForm)
-library(geepack)
-library(dplyr)
-library(Rcpp)
-library(RcppArmadillo)
-library(brglm2)
-library(psych)
-
-sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
-
 .F.test <- function(x) {
   # Fisher's p-value combination
   x.stat <- -2 * sum(log(x))
@@ -22,9 +10,9 @@ sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
     return(diag(x))
   }else{
     return(as.matrix(x))
-    
+
   }
-  
+
 }
 
 ########################################
@@ -40,13 +28,13 @@ sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
   for (j in 1:(m - 1)) {
     Ei.out[j] = exp(crossprod(beta[((j-1)*p+1):(j*p)], X.i))
   }
-  
-  
+
+
   Ei.out[m] <- 1 # set the m-th taxa as reference
-  
-  
-  
-  
+
+
+
+
   return(Ei.out)
 }
 
@@ -54,14 +42,14 @@ sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
   # return  the negative log likelihood of estimated pi for each taxa
   Y <- data$Y
   X <- data$X
-  
+
   n <- nrow(Y)
   m <- ncol(Y)
   p <- ncol(X)
-  
+
   n.beta <- (m - 1) * p
   loglik <- 0
-  
+
   # check the dimension of beta
   if (length(beta) != n.beta) {
     warning("Dim of initial beta does not match the dim of covariates")
@@ -73,30 +61,30 @@ sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
       loglik <- loglik + crossprod(Y[i,], log(P.i))
     }
   }
-  
+
   return(-loglik) # return the log likelihood of beta
 }
 
 .fun.neg.score.beta <- function(beta, data) {
-  
+
   # Calculate the summation of score statistics based on the estimated the beta value
-  
+
   Y <- data$Y
   X <- data$X
-  
+
   n <- nrow(Y)
   m <- ncol(Y)
   p <- ncol(X)
-  
+
   n.beta <- (m - 1) * p
-  
+
   #check the dimension of beta
   if (length(beta) != n.beta) {
     warning("Dim of initial beta does not match the dim of covariates")
   } else {
     Score.beta <- rep(0, n.beta)
     nY <- rowSums(Y)
-    
+
     #
     for (i in 1:n) {
       E.i <- .Ei.beta(m, p, beta, X[i, ], Y[i, ])
@@ -113,11 +101,11 @@ sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
   # return a vector of score statistics with each element corresponding to one subject.
   Y <- data$Y
   X <- data$X
-  
+
   n <- nrow(Y)
   m <- ncol(Y)
   p <- ncol(X)
-  
+
   n.beta <- (m - 1) * p
   # check the dimension of beta
   if (length(beta) != n.beta) {
@@ -125,7 +113,7 @@ sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
   } else {
     Score.beta.i <- matrix(0, n, n.beta)
     nY <- rowSums(Y)
-    
+
     for (i in 1:n) {
       E.i <- .Ei.beta(m, p, beta, X[i, ], Y[i, ])
       sum.E.i <- sum(E.i)
@@ -133,7 +121,7 @@ sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
       #  the score value for beta function (matrix form) (only for parameter of interest)
       Score.beta.i[i, ] <- kronecker(matrix(Y[i, -m] - nY[i] * P.i[-m], ncol = 1), matrix(X[i, ], ncol = 1))
     }
-    
+
     return(Score.beta.i)
   }
 }
@@ -142,12 +130,12 @@ sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
   # calculate the hessian matrix for score statistics
   Y <- data$Y
   X <- data$X
-  
+
   n <- nrow(Y)
   m <- ncol(Y)
   p <- ncol(X)
   n.beta <- (m - 1) * p
-  
+
   # check the dimension of beta
   if (length(beta) != n.beta) {
     print("Waring: dim of beta is not the same as beta\n")
@@ -155,25 +143,25 @@ sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
     Hessian.beta <- matrix(0, nrow = n.beta, ncol = n.beta) # Initialize the Hessian matrix for beta
     nY <- rowSums(Y)
     I.beta.list <- list()
-    
+
     for (i in 1:n) {
       E.i <- .Ei.beta(m, p, beta, X[i, ], Y[i, ])
       sum.E.i <- sum(E.i)
       P.i <- E.i / sum.E.i
-      
-      
+
+
       tmp.beta <- as.matrix(P.i[-m] %o% P.i[-m])
       diag(tmp.beta) <- diag(tmp.beta) - P.i[-m]
       tmp.beta <- nY[i] * tmp.beta
-      
+
       Hessian.beta <- Hessian.beta + kronecker(tmp.beta, (X[i, ] %o% X[i, ]))
-      
+
       if (save.list) {
         I.beta.list[[i]] <- tmp.beta
       }
     }
-    
-    
+
+
     if (save.list) {
       # if save.list = TRUE, this will be used for resampling test
       return(list(Hessian.beta = Hessian.beta, I.beta.list = I.beta.list))
@@ -190,83 +178,83 @@ sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
   n <- nrow(Y)
   m <- ncol(Y)
   n.beta <- (m - 1) * p
-  
+
   if(is.null(colnames(Y))){
     colnames(Y) <- paste0(rep('V',m),c(1:m))
   }
-  
+
   if (sum(X.par.index == 1)) {
     stop("Error: Testing parameters for the intercept is not informative. (Beta part)")
   }
-  
+
   if (is.null(X.par.index) || n == 0) {
     score.stat.beta <- NA
   } else {
     X.reduce <- X[, -X.par.index, drop = FALSE]
     p.reduce <- p - length(X.par.index)
-    
+
     # the index of parameters of interest
     par.interest.index.beta <- kronecker(((0:(m - 2)) * p), rep(1, length(X.par.index))) + X.par.index
-    
+
     n.par.interest.beta <- length(par.interest.index.beta)
-    
+
     beta.ini.reduce <- rep(0, (p.reduce * (m - 1))) # initialize the those elements of beta which we are interested in
-    
+
     data.reduce.beta <- list(Y = Y, X = X.reduce)
-    
+
     est.reduce.beta <- rep(NA, n.beta)
     est.reduce.beta[par.interest.index.beta] <- 0
-    
+
     # Use the optimize function to estimate beta value which we are interested in
     # est.reduce.beta[-par.interest.index.beta] <- optim(par = beta.ini.reduce, fn = .fun.neg.loglik.beta, gr = .fun.neg.score.beta, data = data.reduce.beta, method = "BFGS")$par
     suppressWarnings(est.reduce.beta[-par.interest.index.beta] <- c(t(coef(brmultinom(Y ~ X - 1, data = data.reduce.beta, type = "AS_mean", ref = m)))))
-    
+
     data.beta <- list(Y = Y, X = X)
-    
+
     # Calculate the Score value for beta parameter of interest
     Score.reduce.beta <- .fun.score.i.beta(est.reduce.beta, data.beta)
-    
+
     # for resampling: S.beta.list, I.beta.list
     S.beta.list <- lapply(1:n, function(j) Score.reduce.beta[j, ((1:(m - 1)) * p - p + 1)])
     tmp <- .fun.hessian.beta(est.reduce.beta, data.beta, save.list = TRUE)
     I.beta.list <- tmp$I.beta.list
-    
+
     Hess.reduce.beta <- tmp$Hessian.beta
-    
+
     # re-organized the score statistics and Hessian matrix based on parameters of interest
     Score.reduce.reorg <- cbind(matrix(Score.reduce.beta[, par.interest.index.beta], ncol = n.par.interest.beta), matrix(Score.reduce.beta[, -par.interest.index.beta], ncol = n.beta - n.par.interest.beta))
     Hess.reduce.reorg <- rbind(
       cbind(matrix(Hess.reduce.beta[par.interest.index.beta, par.interest.index.beta], nrow = n.par.interest.beta), matrix(Hess.reduce.beta[par.interest.index.beta, -par.interest.index.beta], nrow = n.par.interest.beta)),
       cbind(matrix(Hess.reduce.beta[-par.interest.index.beta, par.interest.index.beta], nrow = n.beta - n.par.interest.beta), matrix(Hess.reduce.beta[-par.interest.index.beta, -par.interest.index.beta], nrow = n.beta - n.par.interest.beta))
     )
-    
+
     # re-organize the test statistics
     A <- colSums(Score.reduce.reorg)[1:n.par.interest.beta]
-    
+
     B1 <- ginv(Hess.reduce.reorg[(1:n.par.interest.beta), (1:n.par.interest.beta)] - crossprod(t(Hess.reduce.reorg[(1:n.par.interest.beta), ((n.par.interest.beta + 1):n.beta)]),
                                                                                                crossprod(t(ginv(Hess.reduce.reorg[((n.par.interest.beta + 1):n.beta), ((n.par.interest.beta + 1):n.beta)])), Hess.reduce.reorg[((n.par.interest.beta + 1):n.beta), (1:n.par.interest.beta)])))
-    
+
     beta.hat <- crossprod(t(B1), A)
-    
+
     U <- Score.reduce.reorg[ ,1:n.par.interest.beta] - crossprod(t(Score.reduce.reorg[ ,((n.par.interest.beta + 1):n.beta)]),
                                                                  tcrossprod(ginv(Hess.reduce.reorg[((n.par.interest.beta + 1):n.beta), ((n.par.interest.beta + 1):n.beta)]), Hess.reduce.reorg[(1:n.par.interest.beta), ((n.par.interest.beta + 1):n.beta)] ))
-    
+
     B2 <- matrix(0, n.par.interest.beta, n.par.interest.beta)
-    
+
     for (i in 1:n) {
       B2 <- B2 + U[i, ] %o% U[i, ]
     }
-    
+
     cov.beta = crossprod(t(B1), crossprod(t(B2), B1))
   }
-  
+
   # save those summary statistics for later use
   return(list(score.beta = beta.hat, est.cov = cov.beta, S.beta.list = S.beta.list, I.beta.list = I.beta.list))
 }
 
 .Score.test.stat.meta.4Gresampling <- function(X.perm.list, X.par.index, n.par.interest.beta, col.index.list, S.beta.list.meta, I.beta.list.meta, Method = "FE-MV") {
   stu.num <- length(X.perm.list) #  the total number of studies for meta analysis
-  
+
   # initialize those statistics
   score.stat.beta <- NULL
   score.beta <- NULL
@@ -274,7 +262,7 @@ sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
   # initialize the score statistics and estimate covariance matrix for meta-analysis
   score.beta.meta <- rep(0, n.par.interest.beta)
   est.cov.meta <- matrix(0, nrow = n.par.interest.beta, ncol = n.par.interest.beta)
-  
+
   for (j in c(1:stu.num)) {
     # resampling in each group
     S.beta.list <- S.beta.list.meta[[j]]
@@ -295,7 +283,7 @@ sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
       #                                                 #
       ###################################################
       Score.reduce.beta.perm[i, ] <- Score.reduce.beta.perm[i, ] + kronecker(matrix(S.beta.list[[i]], ncol = 1), matrix(X.perm[i, ], ncol = 1))
-      
+
       Hess.reduce.beta.perm <- Hess.reduce.beta.perm + kronecker(I.beta.list[[i]], (X.perm[i, ] %o% X.perm[i, ]))
       #     if(sum(is.na(Hess.reduce.beta.perm))>0){
       #       print(i); break;
@@ -312,26 +300,26 @@ sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
       cbind(matrix(Hess.reduce.beta.perm[par.interest.index.beta, par.interest.index.beta], nrow = n.par.beta.interest), matrix(Hess.reduce.beta.perm[par.interest.index.beta, -par.interest.index.beta], nrow = n.par.beta.interest)),
       cbind(matrix(Hess.reduce.beta.perm[-par.interest.index.beta, par.interest.index.beta], nrow = n.beta - n.par.beta.interest), matrix(Hess.reduce.beta.perm[-par.interest.index.beta, -par.interest.index.beta], nrow = n.beta - n.par.beta.interest))
     )
-    
-    
+
+
     # re-organized the score statistics and estimate covariance matrix based on the parameter of interest
     A <- colSums(Score.reduce.beta.perm.reorg)[1:n.par.beta.interest]
-    
+
     B1 <- ginv(Hess.reduce.beta.perm.reorg[(1:n.par.beta.interest), (1:n.par.beta.interest)] - crossprod(t(Hess.reduce.beta.perm.reorg[(1:n.par.beta.interest), ((n.par.beta.interest + 1):n.beta)]),
                                                                                                          crossprod(t(ginv(Hess.reduce.beta.perm.reorg[((n.par.beta.interest + 1):n.beta), ((n.par.beta.interest + 1):n.beta)])), Hess.reduce.beta.perm.reorg[((n.par.beta.interest + 1):n.beta), (1:n.par.beta.interest)])))
-    
+
     beta.hat <- crossprod(t(B1), A)
-    
+
     U <- Score.reduce.beta.perm.reorg[ ,1:n.par.beta.interest] - crossprod(t(Score.reduce.beta.perm.reorg[ ,((n.par.beta.interest + 1):n.beta)]),
                                                                            tcrossprod(ginv(Hess.reduce.beta.perm.reorg[((n.par.beta.interest + 1):n.beta), ((n.par.beta.interest + 1):n.beta)]), Hess.reduce.beta.perm.reorg[(1:n.par.beta.interest), ((n.par.beta.interest + 1):n.beta)] ))
-    
+
     B2 <- matrix(0, n.par.beta.interest, n.par.beta.interest)
-    
+
     for (i in 1:n) {
       B2 <- B2 + U[i, ] %o% U[i, ]
     }
     cov.beta = crossprod(t(B1), crossprod(t(B2), B1))
-    
+
     # Generate the test statistics for each study
     score.beta[[j]] <- beta.hat # restore the score statistics and estimated covariance matrix in lists which are of necessity for some meta-analysis methods
     est.cov[[j]] <- cov.beta
@@ -465,12 +453,12 @@ sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
     next.end.nperm <- (end.nperm + 1) * 10 - 1
     flag <- 1
   }
-  
+
   else {
     next.end.nperm <- (end.nperm + 1) - 1
     flag <- 0
   }
-  
+
   return(list(n.one.new = n.one.new, one.acc.new = one.acc.new, flag = flag, next.end.nperm = next.end.nperm))
 }
 
@@ -480,7 +468,7 @@ sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
   m = ncol(Y.list[[1]])
   p = ncol(X.list[[1]])
   n.par.interest.beta = (m-1)*length(X.par.index)
-  
+
   remove.study = NULL
   for(i in 1:stu.num){
     remove.rows.idx = which(rowSums(Y.list[[i]]) == 0)
@@ -502,7 +490,7 @@ sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
       stu.num = length(X.list)
     }
   }
-  
+
   if(sum(X.par.index == 1)){
     stop("Error: Testing parameters for the intercept is not informative. (Beta part)")
   }
@@ -518,7 +506,7 @@ sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
   if(is.null(X.par.index)){
     stop("Error: Please provide the index(es) of covariate(s) of interest")
   }
-  
+
   # initialize for later use
   score.stat.beta = NULL
   score.beta = NULL
@@ -573,8 +561,8 @@ sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
       est.cov.meta[idx,idx] =  est.cov.meta[idx,idx] + ginv(tmp.one$est.cov)
     }
   }
-  
-  
+
+
   if(ava.cnt>0){
     if(length(remove.index) != 0){
       X.list = X.list[-remove.index]
@@ -627,65 +615,65 @@ sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
     }
   }
   beta.meta.results = list(score.stat = score.stat.meta, score.pvalue = score.pvalue, df = df)
-  
+
   # if resample = TRUE then will apply permutation method to get permuted p-value
   # adaptive resampling test
   if(resample){
-    
+
     set.seed(seed)
     if(!is.na(score.stat.meta)){
-      
+
       n.one = 0
       one.acc = 0
-      
+
       start.nperm = 1;
       end.nperm = min(100,n.replicates);
       flag = 1
       while(flag & end.nperm <= n.replicates){
-        
+
         results = .resample.work.one.meta(X.list, X.par.index, n.par.interest.beta, col.index.list, score.stat.meta, S.beta.list.meta, I.beta.list.meta, start.nperm, end.nperm, n.one, one.acc, use.cpp = use.cpp, Method = Method)
         n.one = results$n.one.new
         one.acc = results$one.acc.new
         flag = results$flag
         next.end.nperm = results$next.end.nperm
-        
+
         if(flag){
           start.nperm = end.nperm + 1;
           end.nperm = next.end.nperm;
-          
+
         }
-        
+
         if(start.nperm < n.replicates & end.nperm > n.replicates){
           #warning(paste( "Inaccurate pvalue with", n.replicates, "permutations"))
           results = .resample.work.one.meta(X.list, X.par.index, n.par.interest.beta, col.index.list, score.stat.meta, S.beta.list.meta, I.beta.list.meta, start.nperm, end.nperm, n.one, one.acc, use.cpp = use.cpp, Method = Method)
           n.one = results$n.one.new
           one.acc = results$one.acc.new
-          
+
         }
-        
+
       }
-      
-      
+
+
       #      print(paste("Final number of resamplings: ", n.one) )
       #      if(n.one<end.nperm/2){
       #        print("Number of resamplings too small for one-part test")
       #      }
-      
+
       tmp = (one.acc+1)/(n.one+1) # to avoid n.one be zero # resampling p value
-      
+
       #print(n.one)
       #print(one.acc)
-      
+
     }else{
-      
+
       tmp = NA
     }
-    
+
     beta.meta.results = c(beta.meta.results, score.Rpvalue = tmp)
-    
-    
+
+
   }
-  
+
   return(beta.meta.results)
 }
 
@@ -699,18 +687,18 @@ sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
 .Pi.alpha<-function(m, p, alpha, X.i){
   # calculate the exponential of alpha times X
   Pi.out = rep(NA,m)
-  
+
   for(j in 1:m){
-    
+
     tmp = exp(crossprod(alpha[((j-1)*p+1):(j*p)], X.i))
     if(is.infinite(tmp)){
       Pi.out[j] = 1
     }else{
       Pi.out[j] = tmp/(tmp + 1)
     }
-    
+
   }
-  
+
   # no need for base in GEE method
   return (Pi.out)
 }
@@ -718,108 +706,108 @@ sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
 .fun.score.i.alpha <- function(alpha, data, save.list=FALSE){
   # return  the negative log likelihood of estimated pi for each taxa
   Y = data$Y; Z = data$Z;
-  
+
   n = nrow(Y)
   m = ncol(Y)
   p = ncol(Z)
-  
+
   vA.list = list()
   Vinv.list = list()
   VY.list = list()
-  
+
   n.alpha = m*p
   # check the dimension of alpha
   if(length(alpha)!=n.alpha){
-    
+
     warning("Dim of initial alpha does not match the dim of covariates")
-    
+
   }else{
-    
+
     Score.alpha.i = matrix(0, n, n.alpha)
     nY = rowSums(Y)
-    
+
     for(i in 1:n){
-      
+
       Pi.i = .Pi.alpha(m, p, alpha, Z[i,])
       vA.tmp = Pi.i*(1-Pi.i)
       A.i = .diag2(vA.tmp) # transform into diagonal matrices
       t.D.i = kronecker( A.i, as.matrix(Z[i,], ncol=1) )
       V.i = A.i # independent cor structure
-      
+
       tmp.V.i = ginv(V.i)
       tmp.VY = crossprod(t(tmp.V.i), (Y[i,] - Pi.i))
       Score.alpha.i[i,] = crossprod(t(t.D.i), tmp.VY) # score value
-      
+
       if(save.list){
         vA.list[[i]] = vA.tmp
         Vinv.list[[i]] = tmp.V.i
         VY.list[[i]] = tmp.VY
       }
     }
-    
-    
+
+
   }
   # if save.list = TRUE, this will be used for resampling test
   if(save.list){
-    
+
     return ( list(Score.alpha=Score.alpha.i, vA.list = vA.list, Vinv.list = Vinv.list, VY.list=VY.list) )
-    
+
   }else{
-    
+
     return (Score.alpha.i)
   }
-  
+
 }
 
 #fun.hessian.alpha(est.reduce.alpha, data.alpha)
 .fun.hessian.alpha <- function(alpha, data){
-  
+
   Y = data$Y; Z = data$Z
-  
+
   n = nrow(Y)
   m = ncol(Y)
   p = ncol(Z)
   n.alpha = m*p
-  
+
   if(length(alpha)!=n.alpha){
     print("Waring: dim of alpha is not the same as alpha\n")
-    
+
   }else{
-    
+
     Hessian.alpha = matrix(0, nrow=n.alpha, ncol=n.alpha)
     nY = rowSums(Y)
-    
-    
+
+
     for(i in 1:n){
-      
+
       Pi.i = .Pi.alpha(m, p, alpha, Z[i,])
       tmp = Pi.i*(1-Pi.i)
       A.i = .diag2(tmp)
       t.D.i = kronecker( A.i, as.matrix(Z[i,], ncol=1) )
       V.i = A.i # independent cor structure
-      
+
       # the Hessian matrix for GEE model
       Hessian.alpha = Hessian.alpha + crossprod(t(t.D.i), tcrossprod(ginv(V.i), t.D.i))
-      
-      
+
+
     }
-    
+
     return (Hessian.alpha)
-    
-    
+
+
   }
-  
-  
+
+
 }
 
 .Score.test.stat.zero <- function(Y0, Z, Z.par.index, cor.stru){
-  
+
   # Z.reduce preserve covariates that are not interested in
   Z.reduce = Z[,-Z.par.index,drop=FALSE]
   n = nrow(Y0)
   m = ncol(Y0)
   p = ncol(Z)
-  
+
   if(is.null(colnames(Y0))){
     colnames(Y0) <- paste0(rep('V',m),c(1:m))
   }
@@ -828,36 +816,36 @@ sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
   id = NULL
   cova.reduce = NULL
   for(i in 1:n){
-    
+
     outcome = c(outcome, Y0[i,])
     index.start = 1
     index.end = p
-    
+
     index.start.reduce = 1
     index.end.reduce = p.reduce
-    
+
     for(j in 1:m){
-      
+
       tmp = rep(0, m*p.reduce)
       tmp[index.start.reduce:index.end.reduce] = Z.reduce[i,]
       cova.reduce = rbind(cova.reduce, tmp )
       index.start.reduce = index.start.reduce + p.reduce
       index.end.reduce = index.end.reduce + p.reduce
-      
+
     }
-    
-    
+
+
     id = c(id, rep(i, m))
   }
-  
+
   #data.full = data.frame(outcome=outcome, cova, id = id, row.names=NULL)
   data.reduce = data.frame(outcome=outcome, cova.reduce, id = id, row.names=NULL)
   #gee.full = geeglm(outcome ~ .  - id - 1, data = data.full, id = factor(id), family="binomial", corstr= "independence")
   ## use geeglm to estimate the parameter not interested in
   gee.reduce = geeglm(outcome ~ . - id - 1, data = data.reduce, id = factor(id), family="binomial", corstr= "independence")
   #wald.test = anova(gee.full, gee.reduce)
-  
-  
+
+
   ########### perform score test
   n.alpha = m * p
   par.interest.index.alpha =  kronecker( ((0:(m-1))*p), rep(1,length(Z.par.index))) + Z.par.index
@@ -866,7 +854,7 @@ sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
   est.reduce.alpha[par.interest.index.alpha] = 0 # set the est.reduce.aplha corresponding to parameters which are interested in to 0
   est.reduce.alpha[-par.interest.index.alpha] = coef(gee.reduce)
   est.reduce.scale = gee.reduce
-  
+
   data.alpha = list(Y=Y0, Z=Z)
   # estimate the Score statistics for parameter of interest
   tmp = .fun.score.i.alpha(est.reduce.alpha, data.alpha, save.list=TRUE)
@@ -875,41 +863,41 @@ sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
   vA.list = tmp$vA.list
   Vinv.list = tmp$Vinv.list
   VY.list = tmp$VY.list
-  
+
   Hess.reduce.alpha =  .fun.hessian.alpha(est.reduce.alpha, data.alpha)
   # re-organized the score statistics and Hessian matrix according to the index of par.interest.index.alpha
   Score.reduce.reorg = cbind( matrix(Score.reduce.alpha[,par.interest.index.alpha], ncol=n.par.interest.alpha), matrix(Score.reduce.alpha[,-par.interest.index.alpha], ncol=n.alpha - n.par.interest.alpha) )
   Hess.reduce.reorg = rbind(cbind( matrix(Hess.reduce.alpha[par.interest.index.alpha, par.interest.index.alpha], nrow=n.par.interest.alpha), matrix(Hess.reduce.alpha[par.interest.index.alpha, -par.interest.index.alpha], nrow=n.par.interest.alpha) ),
                             cbind( matrix(Hess.reduce.alpha[-par.interest.index.alpha, par.interest.index.alpha], nrow=n.alpha - n.par.interest.alpha), matrix(Hess.reduce.alpha[-par.interest.index.alpha, -par.interest.index.alpha], nrow= n.alpha - n.par.interest.alpha)))
-  
-  
+
+
   A = colSums(Score.reduce.reorg)[1:n.par.interest.alpha]
-  
+
   B1 <- ginv(Hess.reduce.reorg[(1:n.par.interest.alpha), (1:n.par.interest.alpha)] - crossprod(t(Hess.reduce.reorg[(1:n.par.interest.alpha), ((n.par.interest.alpha + 1):n.alpha)]),
                                                                                                crossprod(t(ginv(Hess.reduce.reorg[((n.par.interest.alpha + 1):n.alpha), ((n.par.interest.alpha + 1):n.alpha)])), Hess.reduce.reorg[((n.par.interest.alpha + 1):n.alpha), (1:n.par.interest.alpha)])))
-  
+
   alpha.hat <- crossprod(t(B1), A)
-  
-  
+
+
   U <- Score.reduce.reorg[ ,1:n.par.interest.alpha] - crossprod(t(Score.reduce.reorg[ ,((n.par.interest.alpha + 1):n.alpha)]),tcrossprod(ginv(Hess.reduce.reorg[((n.par.interest.alpha + 1):n.alpha),
                                                                                                                                                                 ((n.par.interest.alpha + 1):n.alpha)]), Hess.reduce.reorg[(1:n.par.interest.alpha), ((n.par.interest.alpha + 1):n.alpha)] ))
-  
+
   B2 <- matrix(0, n.par.interest.alpha, n.par.interest.alpha)
-  
+
   for (i in 1:n) {
     B2 <- B2 + U[i, ] %o% U[i, ]
   }
-  
+
   cov.alpha = crossprod(t(B1), crossprod(t(B2), B1))
-  
+
   # save these outcomes for later resampling test
   return(list(score.df.alpha = n.par.interest.alpha,  score.alpha = alpha.hat, est.cov.zero=cov.alpha, vA.list=vA.list, Vinv.list=Vinv.list, VY.list=VY.list )   )
-  
+
 }
 
 # Get the permutation statistics by R
 .Score.test.stat.zero.meta.4Gresampling <- function(Z.perm.list, Z.par.index, n.par.interest.alpha, col.zero.index.list, vA.list.meta, Vinv.list.meta, VY.list.meta, Method = "FE-MV"){
-  
+
   # the total study number
   stu.num = length(Z.perm.list)
   score.stat.alpha = NULL
@@ -930,50 +918,50 @@ sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
     # the number of parameter of interest for each study
     n.par.alpha.interest = length(par.index.alpha)
     n = nrow(Z.perm)
-    
+
     # initialize for later use
     Score.reduce.alpha.perm = matrix(0, n, n.alpha )
     Hess.reduce.alpha.perm = matrix(0, n.alpha, n.alpha )
-    
+
     for(i in 1:n){
-      
+
       ###################################################
       #                                                 #
       #         alpha part: resampling Score test        #
       #                                                 #
       ###################################################
       tD.tmp = kronecker(.diag2(vA.list[[i]]), as.matrix(Z.perm[i,], ncol=1))
-      
+
       # the permutated score statistics
       Score.reduce.alpha.perm[i,] = Score.reduce.alpha.perm[i,] + crossprod(t(tD.tmp),VY.list[[i]])
       # the permutated Hessian  matrix
       Hess.reduce.alpha.perm = Hess.reduce.alpha.perm + crossprod(t(tD.tmp), tcrossprod(Vinv.list[[i]], tD.tmp))
-      
-      
+
+
     }
-    
+
     # re-organized the score statistics and Hessian matrix according the index of parameter of interest
     Score.reduce.reorg = cbind( matrix(Score.reduce.alpha.perm[,par.index.alpha], ncol=n.par.alpha.interest), matrix(Score.reduce.alpha.perm[,-par.index.alpha], ncol=n.alpha - n.par.alpha.interest) )
     Hess.reduce.reorg = rbind(cbind( matrix(Hess.reduce.alpha.perm[par.index.alpha, par.index.alpha], nrow=n.par.alpha.interest), matrix(Hess.reduce.alpha.perm[par.index.alpha, -par.index.alpha], nrow=n.par.alpha.interest) ),
                               cbind( matrix(Hess.reduce.alpha.perm[-par.index.alpha, par.index.alpha], nrow=n.alpha - n.par.alpha.interest), matrix(Hess.reduce.alpha.perm[-par.index.alpha, -par.index.alpha], nrow= n.alpha - n.par.alpha.interest)))
-    
-    
+
+
     A = colSums(Score.reduce.reorg)[1:n.par.alpha.interest]
-    
+
     B1 <- ginv(Hess.reduce.reorg[(1:n.par.alpha.interest), (1:n.par.alpha.interest)] - crossprod(t(Hess.reduce.reorg[(1:n.par.alpha.interest), ((n.par.alpha.interest + 1):n.alpha)]),
                                                                                                  crossprod(t(ginv(Hess.reduce.reorg[((n.par.alpha.interest + 1):n.alpha), ((n.par.alpha.interest + 1):n.alpha)])), Hess.reduce.reorg[((n.par.alpha.interest + 1):n.alpha), (1:n.par.alpha.interest)])))
-    
+
     alpha.hat <- crossprod(t(B1), A)
-    
+
     U <- Score.reduce.reorg[ ,1:n.par.alpha.interest] - crossprod(t(Score.reduce.reorg[ ,((n.par.alpha.interest + 1):n.alpha)]),tcrossprod(ginv(Hess.reduce.reorg[((n.par.alpha.interest + 1):n.alpha),
                                                                                                                                                                   ((n.par.alpha.interest + 1):n.alpha)]), Hess.reduce.reorg[(1:n.par.alpha.interest), ((n.par.alpha.interest + 1):n.alpha)] ))
-    
+
     B2 <- matrix(0, n.par.alpha.interest, n.par.alpha.interest)
-    
+
     for (i in 1:n) {
       B2 <- B2 + U[i, ] %o% U[i, ]
     }
-    
+
     cov.alpha = crossprod(t(B1), crossprod(t(B2), B1))
     score.alpha[[j]] = alpha.hat # restore the score statistics and estimated covariance matrix in lists which are of necessity for some meta-analysis methods
     est.cov.zero[[j]] = cov.alpha
@@ -1021,7 +1009,7 @@ sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
     score.stat.alpha.perm = crossprod(c(U.tau, U.theta), crossprod(ginv(matrix(c(V.tau,rep(V.theta,3)),ncol = 2)), c(U.tau, U.theta)))
   }
   return(as.numeric(score.stat.alpha.perm))
-  
+
 }
 
 # Get the permutation statistics by cpp
@@ -1071,18 +1059,18 @@ sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
     score.stat.alpha.perm = crossprod(c(U.tau, U.theta), crossprod(ginv(matrix(c(V.tau,rep(V.theta,3)),ncol = 2)), c(U.tau, U.theta)))
   }
   return(as.numeric(score.stat.alpha.perm))
-  
+
 }
 
 # add 10/22/2022 for adaptive resampling
 .resample.work.zero.meta <- function(Z.list, Z.par.index, n.par.interest.alpha, col.zero.index.list, score.stat.zero.meta, zero.vA.list.meta, zero.Vinv.list.meta, zero.VY.list.meta, start.nperm, end.nperm, n.zero, zero.acc, use.cpp, Method = "FE-MV"){
-  
+
   stu.num = length(Z.list)
   n.zero.new = n.zero
   zero.acc.new = zero.acc
-  
+
   for(k in start.nperm:end.nperm){
-    
+
     Z.perm.list = Z.list
     for (i in 1:stu.num){
       idx = sample(1:nrow(Z.list[[i]]))
@@ -1094,30 +1082,30 @@ sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
     else{
       score.stat.alpha.perm = try( .Score.test.stat.zero.meta.4Gresampling(Z.perm.list, Z.par.index,n.par.interest.alpha, col.zero.index.list, zero.vA.list.meta, zero.Vinv.list.meta, zero.VY.list.meta, Method = Method) )
     }
-    
+
     if(!("try-error" %in% class(score.stat.alpha.perm))){# if score.stat.alpha.perm exists, then n.one.new + 1
       # if the permutation test statistics greater than original test statistics, cnt + 1
       n.zero.new = n.zero.new + 1
       if(score.stat.alpha.perm >= score.stat.zero.meta){
         zero.acc.new = zero.acc.new + 1 # if score.stat.alpha.perm >= score.stat.zero.meta one.acc.new + 1
-        
+
       }
     }
-    
-    
+
+
   }
-  
+
   # adaptive adjust the total number of iterations according to the number of resampling statistics which are more extreme than the original one in each loop
   # if the total number of permutation results which are greater than original results too small, enlarge the
   # number of total iterations
   if(zero.acc.new < 1){
     next.end.nperm = (end.nperm + 1) * 100 - 1;
     flag = 1;
-    
+
   }else if(zero.acc.new<10){
     next.end.nperm = ( end.nperm + 1) * 10 - 1;
     flag = 1;
-    
+
   }
   #   else if(one.acc.new<20){
   #     next.end.nperm = ( end.nperm + 1) * 5 - 1;
@@ -1128,10 +1116,10 @@ sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
     next.end.nperm = ( end.nperm + 1) - 1;
     flag = 0;
   }
-  
+
   return(list(n.zero.new=n.zero.new, zero.acc.new=zero.acc.new,
               flag=flag, next.end.nperm=next.end.nperm))
-  
+
 }
 
 # Z.list: a list of covariates for zero part: first column is always intercept
@@ -1187,11 +1175,11 @@ sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
   ava.cnt = 0
   # col.pos.index.lst = lapply(1:stu.num, function(j) )
   ############################# Asymptotic: zero part
-  
-  
+
+
   # if all 0 in one group across across taxa, then output NA
   #if( (ncol(Y0)-length(remove.index))<=1 | sum(Y0[case==1,])==0 | sum(Y0[case==0,])==0){
-  
+
   # initialize for later use
   score.pvalue = NA
   score.stat.meta = NA
@@ -1232,7 +1220,7 @@ sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
     if("try-error" %in% class(tmp.zero)){
       remove.index= append(remove.index,i)
       next
-      
+
     }else{
       # number of study which can get score statistics
       ava.cnt = ava.cnt + 1
@@ -1251,7 +1239,7 @@ sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
       est.cov.meta[idx, idx] =  est.cov.meta[idx, idx] + ginv(tmp.zero$est.cov.zero)
     }
   }
-  
+
   ############################# Asymptotic: combined
   if(ava.cnt>0){
     if(length(remove.index) != 0){
@@ -1308,54 +1296,54 @@ sourceCpp("D:/QCAT_Meta_new/resampling.cpp")
   # if resample = TRUE then will apply permutation method to get permuted p-value
   # adaptive resampling test
   if(resample){
-    
+
     #print("simulated stat:")
     set.seed(seed)
     if(!is.na(score.stat.meta)){
-      
+
       n.zero = 0
       zero.acc = 0
-      
+
       start.nperm = 1;
       end.nperm = min(100,n.replicates);
       flag = 1
       while(flag & end.nperm <= n.replicates){
-        
-        
+
+
         results = .resample.work.zero.meta(Z.list, Z.par.index, n.par.interest.alpha, col.zero.index.list, score.stat.meta, zero.vA.list.meta, zero.Vinv.list.meta, zero.VY.list.meta, start.nperm, end.nperm, n.zero, zero.acc, use.cpp = use.cpp, Method = Method)
         n.zero = results$n.zero.new
         zero.acc = results$zero.acc.new
         flag = results$flag
         next.end.nperm = results$next.end.nperm
-        
+
         if(flag){
           start.nperm = end.nperm + 1;
           end.nperm = next.end.nperm;
-          
+
         }
-        
+
         if(start.nperm < n.replicates & end.nperm > n.replicates){
           #warning(paste( "Inaccurate pvalue with", n.replicates, "resamplings"))
-          
+
           results = .resample.work.zero.meta(Z.list, Z.par.index, n.par.interest.alpha, col.zero.index.list, score.stat.meta, zero.vA.list.meta, zero.Vinv.list.meta, zero.VY.list.meta, start.nperm, end.nperm, n.zero, zero.acc, use.cpp = use.cpp, Method = Method)
-          
+
           n.zero = results$n.zero.new
           zero.acc = results$zero.acc.new
-          
+
         }
-        
+
       }
-      
+
       tmp = (zero.acc+1)/(n.zero+1) # to avoid n.one be zero # resampling p value
-      
-      
+
+
     }else{
-      
+
       tmp = NA
     }
-    
+
     zero.results = c(zero.results, score.Rpvalue = tmp)
-    
+
   }
   return(zero.results)
 }
@@ -1383,7 +1371,7 @@ ACAT<-function(Pvals,Weights=NULL){
     warning("There are p-values that are exactly 1!")
     return(1)
   }
-  
+
   #### Default: equal weights. If not, check the validity of the user supplied weights and standadize them.
   if (is.null(Weights)){
     Weights<-rep(1/length(Pvals),length(Pvals))
@@ -1394,8 +1382,8 @@ ACAT<-function(Pvals,Weights=NULL){
   }else{
     Weights<-Weights/sum(Weights)
   }
-  
-  
+
+
   #### check if there are very small non-zero p values
   is.small<-(Pvals<1e-16)
   if (sum(is.small)==0){
@@ -1429,7 +1417,7 @@ Rarefy <- function (otu.tab, depth = min(rowSums(otu.tab))){
   ind <- (rowSums(otu.tab) < depth)
   sam.discard <- rownames(otu.tab)[ind]
   otu.tab <- otu.tab[!ind, ]
-  
+
   rarefy <- function(x, depth){
     y <- sample(rep(1:length(x), x), depth)
     y.tab <- table(y)
@@ -1489,7 +1477,7 @@ Rarefy <- function (otu.tab, depth = min(rowSums(otu.tab))){
 #' @references
 #' Benjamini, Yoav, and Yosef Hochberg.(1995) Controlling the False Discovery Rate: A Practical and Powerful Approach to Multiple Testing.
 #' \emph{Journal of the Royal Statistical Society. Series B}
-Memic <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.perm=NULL, use.cpp = F, fdr.alpha=0.05, rarefy = F){
+memic <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.perm=NULL, use.cpp = F, fdr.alpha=0.05, rarefy = F){
   n.resample = n.perm
   n.OTU = length(OTU)
   n.X = length(X)
@@ -1512,11 +1500,11 @@ Memic <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.pe
     if(!is.matrix(OTU[[i]])){
       OTU[[i]] = as.matrix(OTU[[i]])
     }
-    
+
     if(!is.matrix(X[[i]])){
       X[[i]] = as.matrix(X[[i]])
     }
-    
+
     if(nrow(OTU[[i]])!=nrow(X[[i]])){
       stop(paste0("Number of samples in the OTU table and the covariate table of study ", i,
                   " should be the same\n"))
@@ -1571,7 +1559,7 @@ Memic <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.pe
   }
   X = lapply(1:n.OTU,function(j) cbind(1, X[[j]])) # add the intercept term
   X.index = X.index + 1
-  
+
   if(is.null(Tax)){ # perform one test using all OTUs
     if(is.null(n.perm)){
       if(Method %in% c('FE-MV', 'FE-VC')){
@@ -1740,11 +1728,11 @@ Memic <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.pe
     }
     return( list(pval=pval) )
   }else{ # perform tests for lineages
-    
+
     if(!is.matrix(Tax)){
       tax = as.matrix(Tax)
     }
-    
+
     # if(length(drop.col)>0){
     #   tax = Tax[-drop.col,,drop = FALSE]
     # }else{
@@ -1756,7 +1744,7 @@ Memic <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.pe
         stop(paste0("Error: OTU IDs in OTU table ",i," are not consistent with OTU IDs in Tax table"))
       }
     }
-    
+
     n.rank = ncol(tax)
     # merge the tax and count together for later partition and merge OTU table according to taxonomy information
     W.data.list = lapply(1:n.OTU,function(j) data.table(data.frame(tax, t(count[[j]]))))
@@ -1765,15 +1753,15 @@ Memic <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.pe
       W.data.rare.list = lapply(1:n.OTU,function(j) data.table(data.frame(tax, t(count.rare[[j]]))))
     }
     n.level = n.rank-1
-    
+
     subtree = NULL
     pval = NULL
-    
+
     for(k in 1:n.level){
-      
+
       Rank.low = paste("Rank", n.rank-k,sep="")
       Rank.high = paste("Rank", n.rank-k+1,sep="")
-      
+
       tmp = table(tax[,n.rank-k])
       level.uni = sort( names(tmp)[which(tmp>1)] )
       m.level = length(level.uni)
@@ -1789,15 +1777,15 @@ Memic <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.pe
         W.rare.tax = as.vector(unlist(tt.rare[[1]][, Rank.low, with=FALSE]))
         W.rare.count = lapply(1:n.OTU,function(j) tt.rare[[j]][, otucols[[j]], with=FALSE])
       }
-      
+
       for(j in 1:m.level){
-        
+
         Y = lapply(1:n.OTU, function(i) t(W.count[[i]][which(W.tax == level.uni[j]), , drop=FALSE]))
         if(rarefy){
           Y.rare = lapply(1:n.OTU, function(i) t(W.rare.count[[i]][which(W.rare.tax == level.uni[j]), , drop=FALSE]))
         }
         #Y = t(W.count[which(W.tax == "f__Veillonellaceae"), , drop=FALSE])
-        
+
         # remove.index = NULL
         # for( i in 1:n.OTU)
         # {
@@ -1811,19 +1799,19 @@ Memic <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.pe
         #
         #
         # }else{
-        
+
         # if(length(remove.index)>0){
         #   Y = lapply(1:n.OTU, function(i) Y[[i]][, -remove.index, drop=FALSE])
         # }
-        
-        
+
+
         if(ncol(Y[[1]])==1){
-          
+
           next
           #print("==skip:1==");
-          
+
         }else{
-          
+
           subtree = c(subtree, level.uni[j])
           #print(level.uni[j])
           if(is.null(n.resample)){ # asymptotic test only
@@ -1977,12 +1965,12 @@ Memic <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.pe
               }
             }
           }
-          
+
         }
-        
+
       } # lineage loop
     } # level loop
-    
+
     colnames(pval) = subtree
     if(is.null(n.resample)){
       rownames(pval) = paste0("Asymptotic-",Method)
@@ -1997,7 +1985,7 @@ Memic <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.pe
       }
       #print(pval)
     }
-    
+
     # identify significant lineages
     subtree.tmp = subtree
     index.na = which(is.na(score.tmp))
@@ -2006,15 +1994,15 @@ Memic <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.pe
       score.tmp = score.tmp[-index.na]
       subtree.tmp = subtree.tmp[-index.na]
     }
-    
+
     #score.tmp[score.tmp==0] = 1e-4
     m.test = length(score.tmp)
-    
+
     # Benjamini-Hochberg FDR control
     index.p = order(score.tmp)
     p.sort = sort(score.tmp)
     #fdr.alpha = 0.05
-    
+
     # change 2022/12/01
     reject = rep(0, m.test)
     tmp = which(p.sort<=(1:m.test)*fdr.alpha/m.test)
@@ -2022,12 +2010,12 @@ Memic <- function(OTU, X, X.index, Tax=NULL, Method = "FE-MV", min.depth=0, n.pe
       index.reject = index.p[1:max(tmp)]
       reject[index.reject] = 1
     }
-    
+
     sig.lineage = subtree.tmp[reject==1]
-    
+
     # return all the p-values as well as significant lineages
     return( list(lineage.pval=pval, sig.lineage=sig.lineage) )
   }
-  
+
 }
 
